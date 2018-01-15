@@ -19,6 +19,8 @@ package org.ethereum.validator;
 
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.BlockHeader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 
@@ -31,7 +33,8 @@ import static org.ethereum.util.BIUtil.isEqual;
  * @since 02.09.2015
  */
 public class DifficultyRule extends DependentBlockHeaderRule {
-
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(DependentBlockHeaderRule.class);
+    
     private final SystemProperties config;
 
     public DifficultyRule(SystemProperties config) {
@@ -47,9 +50,12 @@ public class DifficultyRule extends DependentBlockHeaderRule {
         BigInteger difficulty = header.getDifficultyBI();
 
         if (!isEqual(difficulty, calcDifficulty)) {
-
-            errors.add(String.format("#%d: difficulty != calcDifficulty", header.getNumber()));
-            return false;
+            socialLedgerLogger.debug("The difficulty of the header block is not the same as the calculate difficulty,"
+                    + " but in the Social Ledger protocol we do not care about the difficulty so far." +
+                    " Block header difficulty: " + difficulty + ". Calculated difficulty: " + calcDifficulty);
+            //errors.add(String.format("#%d: difficulty != calcDifficulty", header.getNumber()));
+            //return false;
+            
         }
 
         return true;

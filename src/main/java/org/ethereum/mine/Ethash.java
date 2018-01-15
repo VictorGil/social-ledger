@@ -46,6 +46,8 @@ import static org.ethereum.mine.MinerIfc.MiningResult;
  */
 public class Ethash {
     private static final Logger logger = LoggerFactory.getLogger("mine");
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(Ethash.class);
+    
     private static EthashParams ethashParams = new EthashParams();
 
     private static Ethash cachedInstance = null;
@@ -60,6 +62,7 @@ public class Ethash {
     /**
      * Returns instance for the specified block number either from cache or calculates a new one
      */
+    //important
     public static Ethash getForBlock(SystemProperties config, long blockNumber) {
         long epoch = blockNumber / ethashParams.getEPOCH_LENGTH();
         if (cachedInstance == null || epoch != cachedBlockEpoch) {
@@ -206,15 +209,24 @@ public class Ethash {
      *  @param nThreads CPU threads to mine on
      *  @return the task which may be cancelled. On success returns nonce
      */
+    //VERY IMPORTANT 
     public ListenableFuture<MiningResult> mine(final Block block, int nThreads) {
         return new MineTask(block, nThreads,  new Callable<MiningResult>() {
             AtomicLong taskStartNonce = new AtomicLong(startNonce >= 0 ? startNonce : new Random().nextLong());
             @Override
             public MiningResult call() throws Exception {
                 long threadStartNonce = taskStartNonce.getAndAdd(0x100000000L);
+                //VIC: we do not use the difficulty of the block header
+                //as per now, we use a hardcoded very-low difficulty
+                final long LOW_DIFFICULTY = 5L;
+                
+                socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY);
+                block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
+                
                 long nonce = getEthashAlgo().mine(getFullSize(), getFullDataset(),
                         sha3(block.getHeader().getEncodedWithoutNonce()),
                         ByteUtil.byteArrayToLong(block.getHeader().getDifficulty()), threadStartNonce);
+                
                 final Pair<byte[], byte[]> pair = hashimotoLight(block.getHeader(), nonce);
                 return new MiningResult(nonce, pair.getLeft(), block);
             }
