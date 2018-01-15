@@ -19,6 +19,9 @@ package org.ethereum.mine;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+
+//import net.devaction.socialledger.ethereum.mine.BlockCompliantChecker;
+
 import org.apache.commons.collections4.CollectionUtils;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.*;
@@ -49,7 +52,8 @@ import static java.lang.Math.max;
 @Component
 public class BlockMiner {
     private static final Logger logger = LoggerFactory.getLogger("mine");
-
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(BlockMiner.class);
+    
     private static ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private Blockchain blockchain;
@@ -168,6 +172,8 @@ public class BlockMiner {
         logger.debug("onPendingStateChanged()");
         if (miningBlock == null) {
             restartMining();
+        
+               //this when we compare one block to another 
         } else if (miningBlock.getNumber() <= ((PendingStateImpl) pendingState).getBestBlock().getNumber()) {
             logger.debug("Restart mining: new best block: " + blockchain.getBestBlock().getShortDescr());
             restartMining();
@@ -239,13 +245,36 @@ public class BlockMiner {
         return ret;
     }
 
+    //I will change this, it will wait until the "best block" is more than 10 seconds old
+    //and also the best block should not have been created by this miner
     protected Block getNewBlockForMining() {
+        /*
+        Block bestPendingState = null;
+        do {
+            if (bestPendingState != null) {
+                socialLedgerLogger.trace("Going to sleep for 500 ms and then try to get a compliant best block again");
+                try{
+                    Thread.currentThread().sleep(500);
+                } catch(InterruptedException ex){
+                    socialLedgerLogger.error(ex.toString(), ex);
+                }
+            }
+            
+            //we get this bestBlockChain Block just to log a debug message
+            Block bestBlockchain = blockchain.getBestBlock();
+            bestPendingState = ((PendingStateImpl) pendingState).getBestBlock();
+
+            logger.debug("getNewBlockForMining best blocks: PendingState: " + bestPendingState.getShortDescr() +
+                    ", Blockchain: " + bestBlockchain.getShortDescr());        
+        } while(!BlockCompliantChecker.isCompliant(bestPendingState, config.getMineExtraData()));
+        */
+        
         Block bestBlockchain = blockchain.getBestBlock();
         Block bestPendingState = ((PendingStateImpl) pendingState).getBestBlock();
 
         logger.debug("getNewBlockForMining best blocks: PendingState: " + bestPendingState.getShortDescr() +
                 ", Blockchain: " + bestBlockchain.getShortDescr());
-
+        
         Block newMiningBlock = blockchain.createNewBlock(bestPendingState, getAllPendingTransactions(),
                 getUncles(bestPendingState));
         return newMiningBlock;
@@ -297,6 +326,7 @@ public class BlockMiner {
         return new Block(block.getEncoded());
     }
 
+    //this seems to be important
     protected void blockMined(Block newBlock) throws InterruptedException {
         long t = System.currentTimeMillis();
         if (t - lastBlockMinedTime < minBlockTimeout) {
