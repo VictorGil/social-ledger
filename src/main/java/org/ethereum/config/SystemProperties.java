@@ -50,8 +50,6 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import static org.ethereum.crypto.HashUtil.sha3;
@@ -79,8 +77,7 @@ public class SystemProperties {
     public final static String PROPERTY_PEER_ACTIVE = "peer.active";
     public final static String PROPERTY_DB_RESET = "database.reset";
     public final static String PROPERTY_PEER_DISCOVERY_ENABLED = "peer.discovery.enabled";
-    public static final Charset EXTRA_DATA_CHARSET = StandardCharsets.US_ASCII;
-    
+
     /* Testing */
     private final static Boolean DEFAULT_VMTEST_LOAD_LOCAL = false;
     private final static String DEFAULT_BLOCKS_LOADER = "";
@@ -824,7 +821,7 @@ public class SystemProperties {
         if (config.hasPath("mine.extraDataHex")) {
             bytes = Hex.decode(config.getString("mine.extraDataHex"));
         } else {
-            bytes = config.getString("mine.extraData").getBytes(EXTRA_DATA_CHARSET);
+            bytes = config.getString("mine.extraData").getBytes();
         }
         if (bytes.length > 32) throw new RuntimeException("mine.extraData exceed 32 bytes length: " + bytes.length);
         return bytes;
