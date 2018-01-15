@@ -36,7 +36,18 @@
  * which sets 3.5 GB.
  */
 
-ext.maxHeapSize = '-Xmx1500m' // default is 1G, but could be changed via command line or launched task type
+//ext.maxHeapSize = '-Xmx1500m' // default is 1G, but could be changed via command line or launched task type
+ext {
+    //ethereumj properties
+    slf4jVersion = '1.7.7'
+    leveldbVersion = '0.7'
+    scastleVersion = '1.53.0.0'
+    //springVersion = '4.2.0.RELEASE'
+    springVersion = '4.3.3.RELEASE'
+    hibernateVersion = '4.3.7.Final'
+    junitVersion = '4.11'
+    maxHeapSize = '-Xmx1500m' // default is 1G, but could be changed via command line or launched task type
+}
 
 buildscript {
     repositories {
@@ -93,15 +104,16 @@ dependencies {
     compile "org.ethereum:solcJ-all:0.4.8"                   // Solidity Compiler win/mac/linux binaries
 
     // don't forget to adjust {ethereumJ.version} in application.properties
-    compile ("org.ethereum:ethereumj-core:1.6.3-RELEASE") {
-        changing = true
+    //compile ("org.ethereum:ethereumj-core:1.6.3-devaction-SNAPSHOT") {
+    //    changing = true
 
-        exclude group: "log4j"
-        exclude group: "org.slf4j", module: "log4j-over-slf4j"
-        exclude group: "org.slf4j", module: "slf4j-log4j12"
-        exclude group: "org.ethereum", module: "solcJ-all"
-    }
-
+    //  exclude group: "log4j"
+    //  exclude group: "org.slf4j", module: "log4j-over-slf4j"
+    //  exclude group: "org.slf4j", module: "slf4j-log4j12"
+    //  exclude group: "org.ethereum", module: "solcJ-all"
+    //}
+    //runtime fileTree(dir: '/home/user1/java/eclipse/2018.01.07_ethereum/ethereumj/ethereumj-core/build/install/ethereumj-core/lib', include: '*.jar')
+    
     compile "com.ethercamp:contract-data:1.4.0"
 
     compile "org.projectlombok:lombok:1.16.4"
@@ -152,6 +164,45 @@ dependencies {
     testCompile "org.springframework:spring-test"
     testCompile "org.springframework.boot:spring-boot-starter-test"
 //    compile group: 'org.springframework', name: 'spring-test', version: '2.5'
+
+    //these are the ethereumj-core dependencies
+    compile "io.netty:netty-all:4.0.30.Final"
+    compile "com.madgag.spongycastle:core:${scastleVersion}" // for SHA3 and SECP256K1
+    compile "com.madgag.spongycastle:prov:${scastleVersion}" // for SHA3 and SECP256K1
+
+    compile "org.iq80.leveldb:leveldb:${leveldbVersion}"     // Java API wrapper around native components
+
+    compile "org.ethereum:leveldbjni-all:1.18.3"             // native leveldb components
+
+    //compile "org.ethereum:solcJ-all:0.4.8"                   // Solidity Compiler win/mac/linux binaries
+
+    compile "com.cedarsoftware:java-util:1.8.0" // for deep equals
+    compile "org.javassist:javassist:3.15.0-GA"
+    //compile "org.slf4j:slf4j-api:${slf4jVersion}"
+    compile "ch.qos.logback:logback-classic:1.1.7"
+    compile "org.codehaus.jackson:jackson-mapper-asl:1.9.13"
+    compile "com.google.code.findbugs:jsr305:3.0.0"
+    compile "com.fasterxml.jackson.core:jackson-databind:2.5.1"
+    compile "org.apache.commons:commons-collections4:4.0"
+    compile "org.apache.commons:commons-lang3:3.4"
+    compile "commons-codec:commons-codec:1.10"
+    compile "org.springframework:spring-context:${springVersion}"
+    compile "org.springframework:spring-tx:${springVersion}"
+    compile "org.springframework:spring-orm:${springVersion}"
+    compile "com.typesafe:config:1.2.1"
+    compile "com.googlecode.concurrent-locks:concurrent-locks:1.0.0"
+
+    compile("com.googlecode.json-simple:json-simple:1.1.1") {
+        exclude group: 'junit', module: 'junit'
+    }
+
+    // used to hide spring initialization logs messages in samples
+    //optional "org.slf4j:jcl-over-slf4j:${slf4jVersion}"
+
+    testCompile "junit:junit:${junitVersion}"
+    testCompile "org.springframework:spring-test:${springVersion}"
+    testCompile "org.mockito:mockito-core:2.+"
+    testCompile "com.github.briandilley.jsonrpc4j:jsonrpc4j:1.1"
 }
 
 apply from: 'desktop.gradle'
@@ -225,6 +276,9 @@ sourceCompatibility=1.8
 //    resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
 //}
 
+configurations{
+    all*.exclude group: 'org.ethereum', module: 'ethereumj-core'
+}
 
 /**
  * Tasks for connecting to predefined networks.
