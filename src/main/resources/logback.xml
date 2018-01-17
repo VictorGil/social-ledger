@@ -71,7 +71,8 @@
     <logger name="TCK-Test" level="ERROR"/>
     <logger name="org.hibernate" level="ERROR"/>
     <logger name="repository" level="INFO"/>
-    <logger name="blockchain" level="INFO"/>
+    <!--logger name="blockchain" level="INFO"/-->
+    <logger name="blockchain" level="DEBUG"/>
     <logger name="mine" level="DEBUG"/>
     <logger name="blockqueue" level="DEBUG"/>
     <logger name="rlp" level="ERROR"/>
