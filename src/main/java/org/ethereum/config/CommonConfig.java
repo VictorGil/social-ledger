@@ -28,12 +28,13 @@ import org.ethereum.sync.FastSyncManager;
 import org.ethereum.validator.*;
 import org.ethereum.vm.DataWord;
 import org.ethereum.vm.program.ProgramPrecompile;
-import org.ethereum.vm.program.invoke.ProgramInvokeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.*;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import net.devaction.socialledger.ethereum.validator.SocialNetworkUserRule;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -254,7 +255,9 @@ public class CommonConfig {
         List<DependentBlockHeaderRule> rules = new ArrayList<>(asList(
                 new ParentNumberRule(),
                 new DifficultyRule(systemProperties()),
-                new ParentGasLimitRule(systemProperties())
+                new ParentGasLimitRule(systemProperties()),
+                //this rule is related to the Social Ledger algorithm
+                new SocialNetworkUserRule(systemProperties())
         ));
 
         return new ParentBlockHeaderValidator(rules);

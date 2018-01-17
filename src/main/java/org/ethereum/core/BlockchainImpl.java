@@ -18,6 +18,9 @@
 package org.ethereum.core;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
+
 import org.ethereum.config.BlockchainConfig;
 import org.ethereum.config.CommonConfig;
 import org.ethereum.config.SystemProperties;
@@ -403,7 +406,29 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         return summary;
     }
 
-
+    //We do not want to wait for the end of the "time slot"
+    //while being inside a synchronized method
+    @Override
+    public ImportResult tryToConnectNotSynchronized(final Block block) {
+        ImportResult importResult = tryToConnect(block);
+        if (importResult != BEST_WAITING_IN_TIME_SLOT && 
+                importResult != NOT_BEST_WAITING_IN_TIME_SLOT)
+            return importResult;
+        
+        SocialLedgerManager socialLedgerManager = SocialLedgerManager.getInstance(this);
+        if (importResult == BEST_WAITING_IN_TIME_SLOT)
+            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(bestBlock.getHash(), 
+                    block, bestBlock.getTimestamp());
+        
+        if (importResult == NOT_BEST_WAITING_IN_TIME_SLOT)
+            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(block.getParentHash(), 
+                    block, getBlockByHash(block.getParentHash()).getTimestamp());
+        
+        //this will never happen 
+        return null;        
+    }
+    
+    @Override
     public synchronized ImportResult tryToConnect(final Block block) {
 
         if (logger.isDebugEnabled())
@@ -422,41 +447,62 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
             // retry of well known block
             return EXIST;
         }
-
-        final ImportResult ret;
-
-        // The simple case got the block
-        // to connect to the main chain
-        final BlockSummary summary;
         //the bestBlock is the tail block of the chain with the highest number of different extra-data values (social network users/miners)
-        if (bestBlock.isParentOf(block)) {
-            //VIC: here we would check whether the miner's social network user of the parent is different from the miner's social network of the block
-            //VIC: we actually would need to compare the miner's social network user in this block with the social network user of each block in the chain
-            //VIC: if it is a new social network user, it receives the highest ranking or the biggest number of "points"
-            recordBlock(block);
-//            Repository repoSnap = repository.getSnapshotTo(bestBlock.getStateRoot());
-            summary = add(repository, block);
-
-            //VIC: if summary is not null and it is the child of the current best block,
-            //VIC: then it is the next best block
-            ret = summary == null ? INVALID_BLOCK : IMPORTED_BEST;
-        } else {
-
-            if (blockStore.isBlockExist(block.getParentHash())) {
-                BigInteger oldTotalDiff = getTotalDifficulty();
-
-                recordBlock(block);
-                summary = tryConnectAndFork(block);
-
-                ret = summary == null ? INVALID_BLOCK :
-                        (isMoreThan(getTotalDifficulty(), oldTotalDiff) ? IMPORTED_BEST : IMPORTED_NOT_BEST);
+        if (bestBlock.isParentOf(block)){
+            logger.debug("The block " + block.getShortHash() + " is the child of the current " + 
+                    "best block: " + bestBlock.getShortHash());
+            if (SocialLedgerManager.needToWaitForEndOfTimeSlot(bestBlock)){
+                logger.debug("We need to wait in case other children of the best block arrive.");
+                return BEST_WAITING_IN_TIME_SLOT;
             } else {
-                summary = null;
-                ret = NO_PARENT;
+                logger.debug("We do not need to wait for other children of the best block");
+                return processBest(block);
+                }
+        } else {
+            if (blockStore.isBlockExist(block.getParentHash())){
+                if (SocialLedgerManager.needToWaitForEndOfTimeSlot(getBlockByHash(block.getParentHash()))){
+                    logger.debug("We need to wait in case other children of the not-best block arrive.");
+                    return NOT_BEST_WAITING_IN_TIME_SLOT;
+                } else {
+                    logger.debug("We do not need to wait in case other children of the not-best block arrive.");
+                    return processNotBest(block);
+                }
+            } else {
+                return NO_PARENT;
             }
-
         }
+    }
 
+    public synchronized ImportResult processBest(Block block){
+        final ImportResult ret;
+        final BlockSummary summary;
+
+        recordBlock(block);
+//        Repository repoSnap = repository.getSnapshotTo(bestBlock.getStateRoot());
+        summary = add(repository, block);
+
+        //VIC: if summary is not null and it is the child of the current best block,
+        //VIC: then it is the next best block
+        ret = summary == null ? INVALID_BLOCK : IMPORTED_BEST;
+        
+        return tryToConnectCommon(block, summary, ret);
+    }
+    
+    public synchronized ImportResult processNotBest(Block block){
+        final ImportResult ret;
+        final BlockSummary summary;
+        BigInteger oldTotalDiff = getTotalDifficulty();
+
+        recordBlock(block);
+        summary = tryConnectAndFork(block);
+
+        ret = summary == null ? INVALID_BLOCK :
+                (isMoreThan(getTotalDifficulty(), oldTotalDiff) ? IMPORTED_BEST : IMPORTED_NOT_BEST);
+        
+        return tryToConnectCommon(block, summary, ret);
+    }
+    
+    synchronized ImportResult tryToConnectCommon(final Block block, BlockSummary summary, ImportResult ret){
         if (ret.isSuccessful()) {
             listener.onBlock(summary);
             listener.trace(String.format("Block chain size: [ %d ]", this.getSize()));
@@ -473,7 +519,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
         return ret;
     }
-
+    
     public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles) {
         long time = System.currentTimeMillis() / 1000;
         // adjust time to parent block this may happen due to system clocks difference
@@ -538,6 +584,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
     //    @Override
     public synchronized BlockSummary add(Repository repo, final Block block) {
+        //This triggers the validation of this just-mined block
         BlockSummary summary = addImpl(repo, block);
 
         if (summary == null) {
@@ -570,12 +617,13 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
         
         //IMPORTANT, it checks whether the block is valid 
+        //this calls difficultyRule.validate method among others
         if (!isValid(repo, block)) {
             logger.warn("Invalid block with number: {}", block.getNumber());
             return null;
         }
-
-//        Repository track = repo.startTracking();
+        //here is where I think that we should wait for other blocks  
+//      Repository track = repo.startTracking();
         byte[] origRoot = repo.getRoot();
 
         if (block == null)
@@ -728,7 +776,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
      * likely next period. Conversely, if the period is too large, the difficulty,
      * and expected time to the next block, is reduced.
      */
-    private boolean isValid(Repository repo, Block block) {
+    public boolean isValid(Repository repo, Block block) {
 
         boolean isValid = true;
 
@@ -861,7 +909,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     private BlockSummary processBlock(Repository track, Block block) {
-
+        //VIC: here is when we should wait for other blocks
         if (!block.isGenesis() && !config.blockChainOnly()) {
             return applyBlock(track, block);
         }

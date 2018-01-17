@@ -23,7 +23,11 @@ public enum ImportResult {
     EXIST,
     NO_PARENT,
     INVALID_BLOCK,
-    CONSENSUS_BREAK;
+    CONSENSUS_BREAK,
+    //these two enum values are related to the 
+    //"Social Ledger" algorithm 
+    BEST_WAITING_IN_TIME_SLOT,
+    NOT_BEST_WAITING_IN_TIME_SLOT;
 
     public boolean isSuccessful() {
         return equals(IMPORTED_BEST) || equals(IMPORTED_NOT_BEST);

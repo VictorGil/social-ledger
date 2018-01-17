@@ -27,7 +27,8 @@ public interface Blockchain {
     BlockSummary add(Block block);
 
     ImportResult tryToConnect(Block block);
-
+    ImportResult tryToConnectNotSynchronized(Block block);
+    
     void storeBlock(Block block, List<TransactionReceipt> receipts);
 
     Block getBlockByNumber(long blockNr);

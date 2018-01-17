@@ -17,7 +17,6 @@
  */
 package org.ethereum.facade;
 
-import org.apache.commons.lang3.ArrayUtils;
 import org.ethereum.config.BlockchainConfig;
 import org.ethereum.config.CommonConfig;
 import org.ethereum.config.SystemProperties;
@@ -148,7 +147,8 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
 
     //this seems to be important
     public ImportResult addNewMinedBlock(Block block) {
-        ImportResult importResult = worldManager.getBlockchain().tryToConnect(block);
+        ImportResult importResult = worldManager.getBlockchain().tryToConnectNotSynchronized(block);
+        
         if (importResult == ImportResult.IMPORTED_BEST) {
             channelManager.sendNewBlock(block);
         }
