@@ -25,7 +25,7 @@ import java.util.concurrent.Future;
  * Since Tue 16-Jan-2018  
  */
 public class SocialLedgerManager{
-    private static final Logger logger = LoggerFactory.getLogger(SocialLedgerManager.class);
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(SocialLedgerManager.class);
     private static SocialLedgerManager INSTANCE;
     public static final int TIME_SLOT_IN_SECS = 10;
     
@@ -51,7 +51,7 @@ public class SocialLedgerManager{
         //validate the block before sleeping/waiting
         Repository repo = blockchain.getRepository();
         if (!blockchain.isValid(repo, block)) {
-            logger.warn("Invalid block with number: {}", block.getNumber());
+            socialLedgerLogger.warn("Invalid block with number: {}", block.getNumber());
             return ImportResult.INVALID_BLOCK;
         }
         
@@ -65,11 +65,11 @@ public class SocialLedgerManager{
         Block parentBlock = blockchain.getBlockByHash(block.getParentHash());
         Repository repo = blockchain.getRepository().getSnapshotTo(parentBlock.getStateRoot());
         if (!blockchain.isValid(repo, block)) {
-            logger.warn("Invalid block with number: {}", block.getNumber());
+            socialLedgerLogger.warn("Invalid block with number: {}", block.getNumber());
             return ImportResult.INVALID_BLOCK;
         }
         
-        logger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
+        socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
         return blockWaitForEndOfTimeSlot(parentHashArray, block, parentTimestamp, false);
     }
@@ -87,7 +87,7 @@ public class SocialLedgerManager{
         Block winnerBlock = null;
         
         if (blocksCallableMap.containsKey(parentHashBytesList)){
-            logger.info("There is a compiting block to be the chosen child of " + 
+            socialLedgerLogger.info("There is a compiting block to be the chosen child of " + 
                 ByteUtil.toHexString(parentHashArray) + ". Current block: " + 
                 blocksCallableMap.get(parentHashBytesList).getBlock().getShortDescr() + 
                 ". New (compiting) block: " + block.getShortDescr());     
@@ -108,9 +108,9 @@ public class SocialLedgerManager{
         try{
             winnerBlock = future.get();
         } catch(InterruptedException | ExecutionException ex){
-            logger.error(ex.toString(), ex);
+            socialLedgerLogger.error(ex.toString(), ex);
         } finally{
-            
+            blocksCallableMap.remove(parentHashBytesList);
         }
         
         if (Arrays.equals(block.getHash(), winnerBlock.getHash())) {
@@ -135,8 +135,8 @@ public class SocialLedgerManager{
     public static boolean needToWaitForEndOfTimeSlot(long parentTimestampInMillis){
         long currentTimeInMillis = new Date().getTime();
         long timeSlotInMillis = TIME_SLOT_IN_SECS * 1000;
-        logger.debug("Parent block timestamp in milliseconds: " + parentTimestampInMillis + 
-                ". Current time in milliseconds: " + currentTimeInMillis);
+        //logger.trace("Parent block timestamp in milliseconds: " + parentTimestampInMillis + 
+        //        ". Current time in milliseconds: " + currentTimeInMillis);
         
         if (currentTimeInMillis - parentTimestampInMillis < timeSlotInMillis)
             return true;
