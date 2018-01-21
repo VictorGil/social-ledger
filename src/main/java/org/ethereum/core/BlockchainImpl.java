@@ -521,11 +521,17 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
     
     public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles) {
-        long time = System.currentTimeMillis() / 1000;
+        long currentTime = System.currentTimeMillis() / 1000;
         // adjust time to parent block this may happen due to system clocks difference
-        if (parent.getTimestamp() >= time) time = parent.getTimestamp() + 1;
-
-        return createNewBlock(parent, txs, uncles, time);
+        //if (parent.getTimestamp() >= time) time = parent.getTimestamp() + 1;
+        
+        long timestamp = -1L;
+        if (currentTime - parent.getTimestamp() > SocialLedgerManager.TIME_SLOT_IN_SECS)
+            timestamp = currentTime;
+        else 
+            timestamp = parent.getTimestamp() + SocialLedgerManager.TIME_SLOT_IN_SECS;
+        
+        return createNewBlock(parent, txs, uncles, timestamp);
     }
 
     //IMPORTANT

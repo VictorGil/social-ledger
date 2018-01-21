@@ -20,6 +20,8 @@ package org.ethereum.mine;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
+
 //import net.devaction.socialledger.ethereum.mine.BlockCompliantChecker;
 
 import org.apache.commons.collections4.CollectionUtils;
@@ -43,6 +45,8 @@ import java.util.*;
 import java.util.concurrent.*;
 
 import static java.lang.Math.max;
+
+import static net.devaction.socialledger.ethereum.core.SocialLedgerManager.TIME_SLOT_IN_SECS;
 
 /**
  * Manages embedded CPU mining and allows to use external miners.
@@ -84,6 +88,9 @@ public class BlockMiner {
     private long lastBlockMinedTime;
     private int UNCLE_LIST_LIMIT;
     private int UNCLE_GENERATION_LIMIT;
+    
+    //This is needed by the Social Ledger algorithm
+    private volatile Block lastMinedBlock;
 
     @Autowired
     public BlockMiner(final SystemProperties config, final CompositeEthereumListener listener,
@@ -167,12 +174,33 @@ public class BlockMiner {
     }
 
     private void onPendingStateChanged() {
-        if (!isLocalMining && externalMiner == null) return;
+        socialLedgerLogger.debug("onPendingStateChanged() method started");
+        
+        if (!isLocalMining && externalMiner == null) { 
+            socialLedgerLogger.debug("Local mining is not enabled and there is no external miner. Nothing to do.");
+            return;
+        }
 
         logger.debug("onPendingStateChanged()");
         if (miningBlock == null) {
+            socialLedgerLogger.debug("miningBlock variable points to null");            
+            if (lastMinedBlock == null){
+                socialLedgerLogger.debug("lastMinedBlock variable points to null." + 
+                    "Going to restart mining");
+            } else{
+                socialLedgerLogger.debug("Last mined block short hash: " + lastMinedBlock.getShortHash());                
+                if (lastMinedBlock.getTimestamp() > System.currentTimeMillis() / 1000 ) {
+                    socialLedgerLogger.debug("We don't start mining, we need to wait for the end of the "
+                            + "current time slot, previous mined block which is still in the current time slot: "
+                            + lastMinedBlock.getShortDescr()) ;
+                    return;
+                } else{
+                    socialLedgerLogger.debug("lastMinedBlock is not null: " + lastMinedBlock.getShortDescr() + 
+                            " and we can start mining because the previous time slot ended already");
+                }        
+            } 
             restartMining();
-        
+            
                //this when we compare one block to another 
         } else if (miningBlock.getNumber() <= ((PendingStateImpl) pendingState).getBestBlock().getNumber()) {
             logger.debug("Restart mining: new best block: " + blockchain.getBestBlock().getShortDescr());
@@ -190,7 +218,7 @@ public class BlockMiner {
             }
         }
     }
-
+    
     protected boolean isAcceptableTx(Transaction tx) {
         return minGasPrice.compareTo(new BigInteger(1, tx.getGasPrice())) <= 0;
     }
@@ -281,6 +309,8 @@ public class BlockMiner {
     }
 
     protected void restartMining() {
+        socialLedgerLogger.debug("restartMining() method started.");
+        
         Block newMiningBlock = getNewBlockForMining();
 
         synchronized(this) {
@@ -335,7 +365,9 @@ public class BlockMiner {
                     sleepTime + " ms before importing...");
             Thread.sleep(sleepTime);
         }
-
+        //this is needed by the Social Ledger algorithm
+        lastMinedBlock = newBlock;
+        
         fireBlockMined(newBlock);
         logger.info("Wow, block mined !!!: {}", newBlock.toString());
 
