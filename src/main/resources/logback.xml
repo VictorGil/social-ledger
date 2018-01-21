@@ -32,7 +32,7 @@
             <totalSizeCap>500MB</totalSizeCap>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} %p [%c{1}]  %m%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} %p [%c{1}] [%thread] %m%n</pattern>
         </encoder>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
             <level>TRACE</level>
