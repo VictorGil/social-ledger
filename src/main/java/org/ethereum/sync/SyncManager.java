@@ -270,7 +270,7 @@ public class SyncManager extends BlockDownloader {
                 
                 if (importResult == BEST_WAITING_IN_TIME_SLOT || 
                         importResult == NOT_BEST_WAITING_IN_TIME_SLOT){
-                    socialLedgerLogger.debug("Going to wait/sleep in case other compiting blocks arrive");
+                    socialLedgerLogger.debug("Going to wait/sleep in case other competing blocks arrive");
                     importResult = blockchain.waitForEndOfTimeSlot(wrapper.getBlock(), importResult);
                 }                
 

@@ -76,7 +76,7 @@ public class BlockLoader {
 
             if (result == BEST_WAITING_IN_TIME_SLOT || 
                     result == NOT_BEST_WAITING_IN_TIME_SLOT){
-                socialLedgerLogger.debug("Going to wait/sleep in case other compiting blocks arrive");
+                socialLedgerLogger.debug("Going to wait/sleep in case other competing blocks arrive");
                 result = blockchain.waitForEndOfTimeSlot(block, result);
             }  
             

@@ -87,10 +87,10 @@ public class SocialLedgerManager{
         Block winnerBlock = null;
         
         if (blocksCallableMap.containsKey(parentHashBytesList)){
-            socialLedgerLogger.info("There is a compiting block to be the chosen child of " + 
+            socialLedgerLogger.info("There is a competing block to be the chosen child of " + 
                 ByteUtil.toHexString(parentHashArray) + ". Current block: " + 
                 blocksCallableMap.get(parentHashBytesList).getBlock().getShortDescr() + 
-                ". New (compiting) block: " + block.getShortDescr());     
+                ". New (competing) block: " + block.getShortDescr());     
             
             //so far we just assume that the new block is better than the current block
             //for the sake of simplicity
