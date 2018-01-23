@@ -27,7 +27,7 @@ public interface Blockchain {
     BlockSummary add(Block block);
 
     ImportResult tryToConnect(Block block);
-    ImportResult tryToConnectNotSynchronized(Block block);
+    //ImportResult tryToConnectNotSynchronized(Block block);
     
     void storeBlock(Block block, List<TransactionReceipt> receipts);
 
@@ -78,4 +78,7 @@ public interface Blockchain {
     List<byte[]> getListOfBodiesByHashes(List<byte[]> hashes);
 
     Block createNewBlock(Block parent, List<Transaction> transactions, List<BlockHeader> uncles);
+    
+    //this is required by the Social Ledger algorithm
+    ImportResult waitForEndOfTimeSlot(Block block, ImportResult importResult);
 }

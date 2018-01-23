@@ -21,6 +21,7 @@ package org.ethereum.manager;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.*;
 import org.ethereum.db.DbFlushManager;
+import org.ethereum.sync.BlockDownloader;
 import org.ethereum.util.*;
 import org.ethereum.validator.BlockHeaderValidator;
 import org.slf4j.Logger;
@@ -28,6 +29,9 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import static org.ethereum.core.ImportResult.BEST_WAITING_IN_TIME_SLOT;
+import static org.ethereum.core.ImportResult.NOT_BEST_WAITING_IN_TIME_SLOT;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,7 +46,8 @@ import java.util.concurrent.*;
 @Component
 public class BlockLoader {
     private static final Logger logger = LoggerFactory.getLogger("blockqueue");
-
+    private final static Logger socialLedgerLogger = LoggerFactory.getLogger(BlockLoader.class);
+    
     @Autowired
     private BlockHeaderValidator headerValidator;
 
@@ -69,6 +74,12 @@ public class BlockLoader {
             long s = System.currentTimeMillis();
             ImportResult result = blockchain.tryToConnect(block);
 
+            if (result == BEST_WAITING_IN_TIME_SLOT || 
+                    result == NOT_BEST_WAITING_IN_TIME_SLOT){
+                socialLedgerLogger.debug("Going to wait/sleep in case other compiting blocks arrive");
+                result = blockchain.waitForEndOfTimeSlot(block, result);
+            }  
+            
             if (block.getNumber() % 10 == 0) {
                 System.out.println(df.format(new Date()) + " Imported block " + block.getShortDescr() + ": " + result + " (prework: "
                         + exec1.getQueue().size() + ", work: " + exec2.getQueue().size() + ", blocks: " + exec1.getOrderMap().size() + ") in " +

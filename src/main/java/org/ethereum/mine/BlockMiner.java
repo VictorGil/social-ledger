@@ -378,7 +378,7 @@ public class BlockMiner {
 
         // broadcast the block
         logger.debug("Importing newly mined block {} {} ...", newBlock.getShortHash(), newBlock.getNumber());
-        ImportResult importResult = ((EthereumImpl) ethereum).addNewMinedBlock(newBlock);
+        ImportResult importResult = ((EthereumImpl) ethereum).addNewMinedBlock(newBlock);        
         logger.debug("Mined block import result is " + importResult);
     }
 

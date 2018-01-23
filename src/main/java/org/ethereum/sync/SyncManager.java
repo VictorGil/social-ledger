@@ -56,7 +56,8 @@ import static org.ethereum.util.Utils.longToTimePeriod;
 public class SyncManager extends BlockDownloader {
 
     private final static Logger logger = LoggerFactory.getLogger("sync");
-
+    private final static Logger socialLedgerLogger = LoggerFactory.getLogger(BlockDownloader.class);
+    
     private final static AtomicLong blockQueueByteSize = new AtomicLong(0);
     private final static int BLOCK_BYTES_ADDON = 4;
 
@@ -266,6 +267,13 @@ public class SyncManager extends BlockDownloader {
                     sl = System.nanoTime();
                     importResult = blockchain.tryToConnect(wrapper.getBlock());
                 }
+                
+                if (importResult == BEST_WAITING_IN_TIME_SLOT || 
+                        importResult == NOT_BEST_WAITING_IN_TIME_SLOT){
+                    socialLedgerLogger.debug("Going to wait/sleep in case other compiting blocks arrive");
+                    importResult = blockchain.waitForEndOfTimeSlot(wrapper.getBlock(), importResult);
+                }                
+
                 long f = System.nanoTime();
                 long t = (f - s) / 1_000_000;
                 String ts = timeFormat.format(t / 1000d) + "s";

@@ -58,6 +58,9 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import static org.ethereum.core.ImportResult.BEST_WAITING_IN_TIME_SLOT;
+import static org.ethereum.core.ImportResult.NOT_BEST_WAITING_IN_TIME_SLOT;
+
 /**
  * @author Roman Mandeleil
  * @since 27.07.2014
@@ -67,6 +70,7 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
 
     private static final Logger logger = LoggerFactory.getLogger("facade");
     private static final Logger gLogger = LoggerFactory.getLogger("general");
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(EthereumImpl.class);
 
     @Autowired
     WorldManager worldManager;
@@ -147,9 +151,22 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
 
     //this seems to be important
     public ImportResult addNewMinedBlock(Block block) {
-        ImportResult importResult = worldManager.getBlockchain().tryToConnectNotSynchronized(block);
+        ImportResult importResult = worldManager.getBlockchain().tryToConnect(block);
+        if (importResult == BEST_WAITING_IN_TIME_SLOT || 
+                importResult == NOT_BEST_WAITING_IN_TIME_SLOT){
+            if (importResult == BEST_WAITING_IN_TIME_SLOT) {
+                //we broadcast the new block before waiting/sleeping
+                socialLedgerLogger.debug("Going to broadcast the new mined block " + block.getShortDescr() + " before waiting/sleeping");
+                channelManager.sendNewBlock(block);
+            }
+            importResult = worldManager.getBlockchain().waitForEndOfTimeSlot(block, importResult);
+            //should we broadcast the new best (mined) block again? Probably not.
+            return importResult;
+        }
         
         if (importResult == ImportResult.IMPORTED_BEST) {
+            socialLedgerLogger.debug("Going to broadcast the new mined block " + block.getShortDescr() + 
+                    " we did not have to wait/sleep");
             channelManager.sendNewBlock(block);
         }
         return importResult;

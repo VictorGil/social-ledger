@@ -103,9 +103,9 @@ import static org.ethereum.util.BIUtil.isMoreThan;
 @Component
 public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchain {
 
-
     private static final Logger logger = LoggerFactory.getLogger("blockchain");
     private static final Logger stateLogger = LoggerFactory.getLogger("state");
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(BlockchainImpl.class);
 
     // to avoid using minGasPrice=0 from Genesis for the wallet
     private static final long INITIAL_MIN_GAS_PRICE = 10 * SZABO.longValue();
@@ -408,13 +408,31 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
     //We do not want to wait for the end of the "time slot"
     //while being inside a synchronized method
-    @Override
-    public ImportResult tryToConnectNotSynchronized(final Block block) {
-        ImportResult importResult = tryToConnect(block);
+    //@Override
+    //public ImportResult tryToConnectNotSynchronized(final Block block) {
+    //    return tryToConnect(block);
+        /*
         if (importResult != BEST_WAITING_IN_TIME_SLOT && 
                 importResult != NOT_BEST_WAITING_IN_TIME_SLOT)
             return importResult;
         
+        
+        SocialLedgerManager socialLedgerManager = SocialLedgerManager.getInstance(this);
+        if (importResult == BEST_WAITING_IN_TIME_SLOT)
+            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(bestBlock.getHash(), 
+                    block, bestBlock.getTimestamp());
+        
+        if (importResult == NOT_BEST_WAITING_IN_TIME_SLOT)
+            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(block.getParentHash(), 
+                    block, getBlockByHash(block.getParentHash()).getTimestamp());
+        
+        //this will never happen 
+        return null;
+        */        
+    //}
+
+    //@Override
+    public ImportResult waitForEndOfTimeSlot(final Block block, ImportResult importResult) {
         SocialLedgerManager socialLedgerManager = SocialLedgerManager.getInstance(this);
         if (importResult == BEST_WAITING_IN_TIME_SLOT)
             return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(bestBlock.getHash(), 
@@ -427,7 +445,6 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         //this will never happen 
         return null;        
     }
-    
     @Override
     public synchronized ImportResult tryToConnect(final Block block) {
 
@@ -628,7 +645,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
             logger.warn("Invalid block with number: {}", block.getNumber());
             return null;
         }
-        //here is where I think that we should wait for other blocks  
+ 
 //      Repository track = repo.startTracking();
         byte[] origRoot = repo.getRoot();
 
@@ -915,7 +932,6 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     private BlockSummary processBlock(Repository track, Block block) {
-        //VIC: here is when we should wait for other blocks
         if (!block.isGenesis() && !config.blockChainOnly()) {
             return applyBlock(track, block);
         }
