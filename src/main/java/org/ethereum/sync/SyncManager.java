@@ -56,7 +56,7 @@ import static org.ethereum.util.Utils.longToTimePeriod;
 public class SyncManager extends BlockDownloader {
 
     private final static Logger logger = LoggerFactory.getLogger("sync");
-    private final static Logger socialLedgerLogger = LoggerFactory.getLogger(BlockDownloader.class);
+    private final static Logger socialLedgerLogger = LoggerFactory.getLogger(SyncManager.class);
     
     private final static AtomicLong blockQueueByteSize = new AtomicLong(0);
     private final static int BLOCK_BYTES_ADDON = 4;
@@ -337,13 +337,14 @@ public class SyncManager extends BlockDownloader {
         if (syncQueue == null) return true;
 
         // run basic checks
-        if (!isValid(block.getHeader())) {
+        if (!isValid(block.getHeader())){
+            socialLedgerLogger.info("The block is not valid: " + block.getShortDescr() + ". " + block.toString());
             return false;
         }
 
         lastKnownBlockNumber = block.getNumber();
 
-        logger.debug("Adding new block to sync queue: " + block.getShortDescr());
+        logger.info("Adding new block to sync queue: " + block.getShortDescr());
         syncQueue.addHeaders(singletonList(new BlockHeaderWrapper(block.getHeader(), nodeId)));
 
         synchronized (this) {
@@ -357,12 +358,12 @@ public class SyncManager extends BlockDownloader {
                 wrappers.add(wrapper);
             }
 
-            logger.debug("Pushing " + wrappers.size() + " new blocks to import queue: " + (wrappers.isEmpty() ? "" :
+            logger.trace("Pushing " + wrappers.size() + " new blocks to import queue: " + (wrappers.isEmpty() ? "" :
                     wrappers.get(0).getBlock().getShortDescr() + " ... " + wrappers.get(wrappers.size() - 1).getBlock().getShortDescr()));
             pushBlocks(wrappers);
         }
 
-        logger.debug("Blocks waiting to be proceed:  queue.size: [{}] lastBlock.number: [{}]",
+        logger.trace("Blocks waiting to be proceed:  queue.size: [{}] lastBlock.number: [{}]",
                 blockQueue.size(),
                 block.getNumber());
 
