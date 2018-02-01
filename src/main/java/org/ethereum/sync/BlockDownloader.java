@@ -174,7 +174,7 @@ public abstract class BlockDownloader {
                         final Channel any = getAnyPeer();
 
                         if (any == null) {
-                            logger.debug("headerRetrieveLoop: No IDLE peers found");
+                            logger.trace("headerRetrieveLoop: No IDLE peers found");
                             break;
                         } else {
                             logger.debug("headerRetrieveLoop: request headers (" + headersRequest.getStart() + ") from " + any.getNode());
