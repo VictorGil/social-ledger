@@ -325,6 +325,10 @@ public class BlockMiner {
                         .getConfigForBlock(miningBlock.getNumber())
                         .getMineAlgorithm(config);
                 currentMiningTasks.add(localMiner.mine(cloneBlock(miningBlock)));
+                socialLedgerLogger.info("New mining task added, new block for mining: " + newMiningBlock.getShortDescr() + 
+                        ". The size of the current mining tasks queue is: " + currentMiningTasks.size());
+            } else{
+                socialLedgerLogger.info("Local mining is not enabled!! New block for mining: " +  newMiningBlock.getShortDescr());
             }
 
             for (final ListenableFuture<MiningResult> task : currentMiningTasks) {
