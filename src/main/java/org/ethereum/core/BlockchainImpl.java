@@ -439,7 +439,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
                     block, bestBlock.getTimestamp());
         
         if (importResult == NOT_BEST_WAITING_IN_TIME_SLOT)
-            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(block.getParentHash(), 
+            return socialLedgerManager.notBestBlockWaitForEndOfTimeSlot(block.getParentHash(), 
                     block, getBlockByHash(block.getParentHash()).getTimestamp());
         
         //this will never happen 
