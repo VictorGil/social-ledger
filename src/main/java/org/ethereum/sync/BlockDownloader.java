@@ -276,10 +276,10 @@ public abstract class BlockDownloader {
                         SyncQueueIfc.BlocksRequest blocksRequest = it.next();
                         Channel any = getAnyPeer();
                         if (any == null) {
-                            logger.debug("blockRetrieveLoop: No IDLE peers found");
+                            logger.trace("blockRetrieveLoop: No IDLE peers found");
                             break;
                         } else {
-                            logger.debug("blockRetrieveLoop: Requesting " + blocksRequest.getBlockHeaders().size() + " blocks from " + any.getNode());
+                            logger.trace("blockRetrieveLoop: Requesting " + blocksRequest.getBlockHeaders().size() + " blocks from " + any.getNode());
                             ListenableFuture<List<Block>> futureBlocks =
                                     any.getEthHandler().sendGetBlockBodies(blocksRequest.getBlockHeaders());
                             blocksRequested += blocksRequest.getBlockHeaders().size();
@@ -317,7 +317,7 @@ public abstract class BlockDownloader {
         }
 
         synchronized (this) {
-            logger.debug("Adding new " + blocks.size() + " blocks to sync queue: " +
+            logger.trace("Adding new " + blocks.size() + " blocks to sync queue: " +
                     blocks.get(0).getShortDescr() + " ... " + blocks.get(blocks.size() - 1).getShortDescr());
 
             List<Block> newBlocks = syncQueue.addBlocks(blocks);
@@ -328,7 +328,7 @@ public abstract class BlockDownloader {
             }
 
 
-            logger.debug("Pushing " + wrappers.size() + " blocks to import queue: " + (wrappers.isEmpty() ? "" :
+            logger.trace("Pushing " + wrappers.size() + " blocks to import queue: " + (wrappers.isEmpty() ? "" :
                     wrappers.get(0).getBlock().getShortDescr() + " ... " + wrappers.get(wrappers.size() - 1).getBlock().getShortDescr()));
 
             pushBlocks(wrappers);
@@ -336,7 +336,7 @@ public abstract class BlockDownloader {
 
         receivedBlocksLatch.countDown();
 
-        if (logger.isDebugEnabled()) logger.debug(
+        logger.trace(
                 "Blocks waiting to be proceed: lastBlock.number: [{}]",
                 blocks.get(blocks.size() - 1).getNumber()
         );
