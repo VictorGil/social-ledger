@@ -122,7 +122,7 @@ public class BlockBodiesDownloader extends BlockDownloader {
     }
 
     private void addEmptyBodyBlocks(List<BlockHeader> blockHeaders) {
-        logger.debug("Adding {} empty body blocks to sync queue: {} ... {}", blockHeaders.size(),
+        logger.trace("Adding {} empty body blocks to sync queue: {} ... {}", blockHeaders.size(),
                 blockHeaders.get(0).getShortDescr(), blockHeaders.get(blockHeaders.size() - 1).getShortDescr());
 
         List<Block> finishedBlocks = new ArrayList<>();
