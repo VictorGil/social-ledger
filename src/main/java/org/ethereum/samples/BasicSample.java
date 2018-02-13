@@ -59,6 +59,9 @@ import java.util.*;
 public class BasicSample implements Runnable {
 
     public static final Logger sLogger = LoggerFactory.getLogger("sample");
+    
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(BasicSample.class);
+    
     private static CustomFilter CUSTOM_FILTER;
 
     private String loggerName;
@@ -337,6 +340,8 @@ public class BasicSample implements Runnable {
 
         @Override
         public void onBlock(Block block, List<TransactionReceipt> receipts) {
+            socialLedgerLogger.info("onBlock method started");
+            
             bestBlock = block;
             txCount += receipts.size();
             for (TransactionReceipt receipt : receipts) {

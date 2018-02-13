@@ -3,13 +3,14 @@ package net.devaction.socialledger.ethereum.core;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.ethereum.config.SystemProperties;
 import org.ethereum.core.Block;
 import org.ethereum.core.BlockchainImpl;
 import org.ethereum.core.ImportResult;
@@ -18,7 +19,12 @@ import org.ethereum.util.ByteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.devaction.socialledger.algorithm.BestBlock;
+import net.devaction.socialledger.algorithm.BestBlockSelector;
+
 import java.util.concurrent.Future;
+
+import static net.devaction.socialledger.algorithm.BestBlock.BLOCK2;
 
 /**
  * @author Víctor Gil
@@ -31,9 +37,12 @@ public class SocialLedgerManager{
     
     //Maybe there is always just one entry in this map at most but I am not sure
     //better to use a map so far, just in case
-    private final Map<List<Byte>, WaitingCallable> blocksCallableMap = new HashMap<List<Byte>, WaitingCallable>();
+    private final Map<List<Byte>, WaitingCallable> blocksCallableMap = new ConcurrentHashMap<List<Byte>, WaitingCallable>();
     
     private BlockchainImpl blockchain;
+    
+    private volatile long firstBlockMinedByUsTimestamp = -1L;
+    //private volatile long firstConflictBlockTimestamp = -1L;
     
     private SocialLedgerManager(BlockchainImpl blockchain){
         this.blockchain = blockchain;
@@ -45,8 +54,7 @@ public class SocialLedgerManager{
         return INSTANCE;
     }    
     
-    public ImportResult bestBlockWaitForEndOfTimeSlot(byte[] parentHashArray, 
-        Block block, long parentTimestamp){
+    public ImportResult bestBlockWaitForEndOfTimeSlot(Block block, long parentTimestamp){
         
         //validate the block before sleeping/waiting
         Repository repo = blockchain.getRepository();
@@ -55,7 +63,10 @@ public class SocialLedgerManager{
             return ImportResult.INVALID_BLOCK;
         }
         
-        return blockWaitForEndOfTimeSlot(parentHashArray, block, parentTimestamp, true);
+        socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
+                "the end of the time-slot if required");
+        
+        return blockWaitForEndOfTimeSlot(block, parentTimestamp, true);
     }
 
     public ImportResult notBestBlockWaitForEndOfTimeSlot(byte[] parentHashArray, 
@@ -71,59 +82,93 @@ public class SocialLedgerManager{
         
         socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
-        return blockWaitForEndOfTimeSlot(parentHashArray, block, parentTimestamp, false);
+        return blockWaitForEndOfTimeSlot(block, parentTimestamp, false);
     }
     
-    ImportResult blockWaitForEndOfTimeSlot(byte[] parentHashArray, 
-        Block block, long parentTimestamp, boolean isBest){
+    ImportResult blockWaitForEndOfTimeSlot(final Block block, long parentTimestamp, boolean isBest){
         
-        final List<Byte> parentHashBytesList = new ArrayList<Byte>();        
-        for (byte bytePrimitive : parentHashArray){
-            parentHashBytesList.add(bytePrimitive);
-        }
-        
-        WaitingCallable waitingCallable;
-        Future<Block> future;
+        final List<Byte> parentHashBytesList = new ArrayList<Byte>();
         Block winnerBlock = null;
+        Future<Block> future;
         
-        if (blocksCallableMap.containsKey(parentHashBytesList)){
-            socialLedgerLogger.info("There is a competing block to be the chosen child of " + 
-                ByteUtil.toHexString(parentHashArray) + ". Current block: " + 
-                blocksCallableMap.get(parentHashBytesList).getBlock().getShortDescr() + 
-                ". New (competing) block: " + block.getShortDescr());     
+        Object lock = new Object();
+        synchronized(lock){                    
+            for (byte bytePrimitive : block.getParentHash()){
+                parentHashBytesList.add(bytePrimitive);
+            }
+        
+            WaitingCallable waitingCallable;
+                    
+            if (blocksCallableMap.containsKey(parentHashBytesList)){
+                Block currentBlock = blocksCallableMap.get(parentHashBytesList).getBlock();
             
-            //so far we just assume that the new block is better than the current block
-            //for the sake of simplicity
-            blocksCallableMap.get(parentHashBytesList).setBlock(block);
-            future =  blocksCallableMap.get(parentHashBytesList).getFuture();
-        } else{
-            waitingCallable = new WaitingCallable(parentHashArray, block, parentTimestamp);
-            blocksCallableMap.put(parentHashBytesList, waitingCallable);
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            future = executor.submit(waitingCallable);
-            waitingCallable.setFuture(future);
-            executor.shutdown();
-        }
+                socialLedgerLogger.info("There is a competing block to be the chosen child of " + 
+                        ByteUtil.toHexString(block.getParentHash()) + ". Current block: " + 
+                        currentBlock.getShortDescr() + 
+                        ". New (competing) block: " + block.getShortDescr());     
+                if (firstBlockMinedByUsTimestamp != -1 && firstBlockMinedByUsTimestamp < block.getTimestamp() 
+                        //|| (firstConflictBlockTimestamp != -1 && firstConflictBlockTimestamp < block.getTimestamp())) {
+                        ){
+                    BestBlockSelector bestBlockSelector = BestBlockSelector.getInstance();            
+                    BestBlock bestBlock = bestBlockSelector.select(currentBlock, block);
+                    if (bestBlock == BLOCK2){            
+                        blocksCallableMap.get(parentHashBytesList).setBlock(block);
+                    }
+                } else{
+                   //TO DO: I do not think we need this, we do not need to treat the first conflict differently than the rest
+                   socialLedgerLogger.info("Since it is the first conflict, we accept the other miner's block to prevent a timing issue");
+                   if (didWeMineIt(block))
+                       firstBlockMinedByUsTimestamp = block.getTimestamp();
+                }
+                future =  blocksCallableMap.get(parentHashBytesList).getFuture();
+                socialLedgerLogger.info("Going to wait in case more competing blocks arrive. " + 
+                        "Exiting the synchronized block now");
+            } else{
+                socialLedgerLogger.info("There is NO competing block to be the chosen child of " + 
+                        ByteUtil.toHexString(block.getParentHash()) + " so far. New (first) block: " + 
+                        block.getShortDescr()); 
+                        
+                waitingCallable = new WaitingCallable(block.getParentHash(), block, parentTimestamp);
+                blocksCallableMap.put(parentHashBytesList, waitingCallable);
+                ExecutorService executor = Executors.newSingleThreadExecutor();
+                future = executor.submit(waitingCallable);
+                waitingCallable.setFuture(future);
+                executor.shutdown();
+                socialLedgerLogger.info("Going to wait in case the first competing block arrives. " + 
+                        "Exiting the synchronized block now");
+                
+                if (firstBlockMinedByUsTimestamp == -1L && didWeMineIt(block)) {
+                    socialLedgerLogger.info("This is the first block that we mined: " + block.getShortDescr());
+                    firstBlockMinedByUsTimestamp = block.getTimestamp();
+                }
+            }
+        }//end of synchronized block
         
         try{
+            //TO DO: probably only one thread should wait here
             winnerBlock = future.get();
         } catch(InterruptedException | ExecutionException ex){
             socialLedgerLogger.error(ex.toString(), ex);
         } finally{
             blocksCallableMap.remove(parentHashBytesList);
         }
+        socialLedgerLogger.info("Woke up after waiting. Winner block: " + 
+                winnerBlock == null ? null : winnerBlock.getShortDescr());
         
         if (Arrays.equals(block.getHash(), winnerBlock.getHash())) {
             if (isBest){
                 blockchain.processBest(block);
+                socialLedgerLogger.info("Going to return: " + ImportResult.IMPORTED_BEST);
                 return ImportResult.IMPORTED_BEST;
             } else{
                 blockchain.processNotBest(block);
+                socialLedgerLogger.info("Going to return: " + ImportResult.IMPORTED_NOT_BEST);
                 return ImportResult.IMPORTED_NOT_BEST;
             }                
         }        
         //this is not really accurate, it would be better to return something 
-        //such as "LOSER" as per the Social Ledger algorithm 
+        //such as "LOSER" as per the Social Ledger algorithm
+        socialLedgerLogger.info("Going to return: " + ImportResult.INVALID_BLOCK);
         return ImportResult.INVALID_BLOCK;
     }
     
@@ -141,5 +186,15 @@ public class SocialLedgerManager{
         if (currentTimeInMillis - parentTimestampInMillis < timeSlotInMillis)
             return true;
         return false;              
+    }
+    
+    static boolean didWeMineIt(Block block){
+        byte[] thisMinerCoinBase = SystemProperties.getDefault().getMinerCoinbase();
+        if (Arrays.equals(thisMinerCoinBase, block.getCoinbase())) {
+            socialLedgerLogger.info("We mined this block: " + block.getShortDescr());
+            return true;
+        }
+        socialLedgerLogger.info("We did not mine this block: " + block.getShortDescr());
+        return false;
     }
 }

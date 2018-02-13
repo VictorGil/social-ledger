@@ -17,6 +17,9 @@
  */
 package org.ethereum.net.server;
 
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.ethereum.config.SystemProperties;
 import org.ethereum.listener.EthereumListener;
 
@@ -48,7 +51,8 @@ import org.springframework.stereotype.Component;
 public class PeerServer {
 
     private static final Logger logger = LoggerFactory.getLogger("net");
-
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(PeerServer.class);
+            
     private SystemProperties config;
 
     private ApplicationContext ctx;
@@ -73,8 +77,23 @@ public class PeerServer {
 
     public void start(int port) {
 
-        bossGroup = new NioEventLoopGroup(1);
-        workerGroup = new NioEventLoopGroup();
+        bossGroup = new NioEventLoopGroup(1, new ThreadFactory() {
+            AtomicInteger cnt = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, "PeerServerBossGroupNioELG-" + cnt.getAndIncrement());
+            }
+        });
+        
+        socialLedgerLogger.info("PeerServerWorkerGroupNioELG is going to have 2 threads");
+        //workerGroup = new NioEventLoopGroup(1, new ThreadFactory() {
+        workerGroup = new NioEventLoopGroup(2, new ThreadFactory() {
+            AtomicInteger cnt = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, "PeerServerWorkerGroupNioELG-" + cnt.getAndIncrement());
+            }
+        });
 
         ethereumChannelInitializer = ctx.getBean(EthereumChannelInitializer.class, "");
 
@@ -95,6 +114,7 @@ public class PeerServer {
             b.childHandler(ethereumChannelInitializer);
 
             // Start the client.
+            //INFO [net] [PeerServerThread] Listening for incoming connections, port: [33301]
             logger.info("Listening for incoming connections, port: [{}] ", port);
             logger.info("NodeId: [{}] ", Hex.toHexString(config.nodeId()));
 

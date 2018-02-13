@@ -51,6 +51,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -362,7 +363,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         stateStack.pop();
     }
 
-    private synchronized BlockSummary tryConnectAndFork(final Block block) {
+    //private synchronized BlockSummary tryConnectAndFork(final Block block) {
+    private BlockSummary tryConnectAndFork(final Block block) {
         State savedState = pushState(block.getParentHash());
         this.fork = true;
 
@@ -390,7 +392,7 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
             // main branch become this branch
             // cause we proved that total difficulty
-            // is greateer
+            // is greater
             blockStore.reBranch(block);
 
             // The main repository rebranch
@@ -434,110 +436,144 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     //@Override
     public ImportResult waitForEndOfTimeSlot(final Block block, ImportResult importResult) {
         SocialLedgerManager socialLedgerManager = SocialLedgerManager.getInstance(this);
-        if (importResult == BEST_WAITING_IN_TIME_SLOT)
-            return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(bestBlock.getHash(), 
-                    block, bestBlock.getTimestamp());
+        if (importResult == BEST_WAITING_IN_TIME_SLOT){
+            if (Arrays.equals(block.getParentHash(), bestBlock.getHash())){
+                socialLedgerLogger.debug("As expected, Block " + block.getShortDescr() + " IS the child of the best block " + bestBlock.getShortDescr());
+                return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(block, getBlockByHash(block.getParentHash()).getTimestamp());
+            }
+            socialLedgerLogger.warn("Unexpectedly, block " + block.getShortDescr() + " is NOT the child of the best block " + bestBlock.getShortDescr());
+            return INVALID_BLOCK;            
+        }
         
-        if (importResult == NOT_BEST_WAITING_IN_TIME_SLOT)
-            return socialLedgerManager.notBestBlockWaitForEndOfTimeSlot(block.getParentHash(), 
-                    block, getBlockByHash(block.getParentHash()).getTimestamp());
-        
+        if (importResult == NOT_BEST_WAITING_IN_TIME_SLOT){
+            if (Arrays.equals(block.getParentHash(), bestBlock.getHash())){
+                socialLedgerLogger.warn("Unexpectedly, block " + block.getShortDescr() + " IS the child of the best block " + bestBlock.getShortDescr());
+                return socialLedgerManager.bestBlockWaitForEndOfTimeSlot(block, getBlockByHash(block.getParentHash()).getTimestamp());
+            } 
+            socialLedgerLogger.debug("As expected, Block " + block.getShortDescr() + " is NOT the child of the best block " + bestBlock.getShortDescr());
+            return INVALID_BLOCK;            
+            //return socialLedgerManager.notBestBlockWaitForEndOfTimeSlot(block, getBlockByHash(block.getParentHash()).getTimestamp());            
+        }
+            
         //this will never happen 
         return null;        
     }
+    
     @Override
-    public synchronized ImportResult tryToConnect(final Block block) {
-
-        if (logger.isDebugEnabled())
-            logger.debug("Try connect block hash: {}, number: {}",
-                    Hex.toHexString(block.getHash()).substring(0, 6),
-                    block.getNumber());
-
-        if (blockStore.getMaxNumber() >= block.getNumber() &&
-                blockStore.isBlockExist(block.getHash())) {
-
+    public ImportResult tryToConnect(final Block block) {
+        final Object lock = new Object();
+        
+        synchronized(lock){
             if (logger.isDebugEnabled())
-                logger.debug("Block already exist hash: {}, number: {}",
+                logger.debug("Try connect block hash: {}, number: {}",
                         Hex.toHexString(block.getHash()).substring(0, 6),
                         block.getNumber());
 
-            // retry of well known block
-            return EXIST;
-        }
-        //the bestBlock is the tail block of the chain with the highest number of different extra-data values (social network users/miners)
-        if (bestBlock.isParentOf(block)){
-            logger.debug("The block " + block.getShortHash() + " is the child of the current " + 
-                    "best block: " + bestBlock.getShortHash());
-            if (SocialLedgerManager.needToWaitForEndOfTimeSlot(bestBlock)){
-                logger.debug("We need to wait in case other children of the best block arrive.");
-                return BEST_WAITING_IN_TIME_SLOT;
-            } else {
-                logger.debug("We do not need to wait for other children of the best block");
-                return processBest(block);
-                }
-        } else {
-            if (blockStore.isBlockExist(block.getParentHash())){
-                if (SocialLedgerManager.needToWaitForEndOfTimeSlot(getBlockByHash(block.getParentHash()))){
-                    logger.debug("We need to wait in case other children of the not-best block arrive.");
-                    return NOT_BEST_WAITING_IN_TIME_SLOT;
-                } else {
-                    logger.debug("We do not need to wait in case other children of the not-best block arrive.");
-                    return processNotBest(block);
-                }
-            } else {
-                return NO_PARENT;
+            if (blockStore.getMaxNumber() >= block.getNumber() &&
+                    blockStore.isBlockExist(block.getHash())) {
+
+                if (logger.isDebugEnabled())
+                    logger.debug("Block already exist hash: {}, number: {}",
+                            Hex.toHexString(block.getHash()).substring(0, 6),
+                            block.getNumber());
+
+                // retry of well known block
+                return EXIST;
             }
-        }
+            
+            //the bestBlock is the tail block of the chain with the highest number of different extra-data values (social network users/miners)
+            if (bestBlock.isParentOf(block)){
+                logger.debug("The block " + block.getShortHash() + " is the child of the current " + 
+                        "best block: " + bestBlock.getShortHash());
+                if (SocialLedgerManager.needToWaitForEndOfTimeSlot(bestBlock)){
+                    logger.debug("We need to wait in case other children of the best block arrive.");
+                    return BEST_WAITING_IN_TIME_SLOT;
+                } else {
+                    logger.debug("We do not need to wait for other children of the best block");
+                    return processBest(block);
+                }
+            } else {
+                if (blockStore.isBlockExist(block.getParentHash())){
+                    if (SocialLedgerManager.needToWaitForEndOfTimeSlot(getBlockByHash(block.getParentHash()))){
+                        logger.debug("We need to wait in case other children of the not-best block arrive.");
+                        return NOT_BEST_WAITING_IN_TIME_SLOT;
+                    } else {
+                        logger.debug("We do not need to wait in case other children of the not-best block arrive.");
+                        return processNotBest(block);
+                    }
+                } else {
+                    return NO_PARENT;
+                }
+            }
+        }//end of synchronized block
     }
 
-    public synchronized ImportResult processBest(Block block){
-        final ImportResult ret;
-        final BlockSummary summary;
-
-        recordBlock(block);
-//        Repository repoSnap = repository.getSnapshotTo(bestBlock.getStateRoot());
-        summary = add(repository, block);
-
-        //VIC: if summary is not null and it is the child of the current best block,
-        //VIC: then it is the next best block
-        ret = summary == null ? INVALID_BLOCK : IMPORTED_BEST;
+    public ImportResult processBest(Block block){
         
-        return tryToConnectCommon(block, summary, ret);
+        final Object lock = new Object();
+        
+        synchronized(lock){
+            ImportResult ret;
+            final BlockSummary summary;
+
+            recordBlock(block);
+            //Repository repoSnap = repository.getSnapshotTo(bestBlock.getStateRoot());
+            summary = add(repository, block);
+
+            //VIC: if summary is not null and it is the child of the current best block,
+            //VIC: then it is the next best block
+            ret = summary == null ? INVALID_BLOCK : IMPORTED_BEST;
+            ret = tryToConnectCommon(block, summary, ret);
+            socialLedgerLogger.info("processBest method finished. Block: " + block.getShortDescr());
+            return ret;            
+        }
     }
     
-    public synchronized ImportResult processNotBest(Block block){
-        final ImportResult ret;
-        final BlockSummary summary;
-        BigInteger oldTotalDiff = getTotalDifficulty();
+    public ImportResult processNotBest(Block block){
+        final Object lock = new Object();
+        
+        synchronized(lock){
+            final ImportResult ret;
+            final BlockSummary summary;
+            BigInteger oldTotalDiff = getTotalDifficulty();
 
-        recordBlock(block);
-        summary = tryConnectAndFork(block);
+            recordBlock(block);
+            summary = tryConnectAndFork(block);
 
-        ret = summary == null ? INVALID_BLOCK :
+            ret = summary == null ? INVALID_BLOCK :
                 (isMoreThan(getTotalDifficulty(), oldTotalDiff) ? IMPORTED_BEST : IMPORTED_NOT_BEST);
         
-        return tryToConnectCommon(block, summary, ret);
+            return tryToConnectCommon(block, summary, ret);
+        }
     }
     
-    synchronized ImportResult tryToConnectCommon(final Block block, BlockSummary summary, ImportResult ret){
-        if (ret.isSuccessful()) {
-            listener.onBlock(summary);
-            listener.trace(String.format("Block chain size: [ %d ]", this.getSize()));
+    ImportResult tryToConnectCommon(final Block block, BlockSummary summary, ImportResult ret){
+        final Object lock = new Object();
+        
+        synchronized(lock){
+            if (ret.isSuccessful()) {
+                socialLedgerLogger.info("Going to call listener.onBlock(BlockSummary)");
+                //this calls CompositeEthereumListener.onBlock(BlockSummary)
+                listener.onBlock(summary);
+                socialLedgerLogger.info("listener.onBlock(BlockSummary) has finished");
+                listener.trace(String.format("Block chain size: [ %d ]", this.getSize()));
 
-            if (ret == IMPORTED_BEST) {
-                eventDispatchThread.invokeLater(new Runnable() {
-                    @Override
-                    public void run() {
-                        pendingState.processBest(block, summary.getReceipts());
-                    }
-                });
-            }
-        }
-
+                if (ret == IMPORTED_BEST) {
+                    eventDispatchThread.invokeLater(new Runnable() {
+                        @Override
+                        public void run() {
+                            pendingState.processBest(block, summary.getReceipts());
+                        }
+                    });
+                }
+            }            
+        }//end of synchronized block
+        socialLedgerLogger.info("tryToConnectCommon method has finished, ImportResult: " + ret + ". Block: " + block.getShortDescr());
         return ret;
     }
     
-    public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles) {
+    //public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles) {
+    public Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles) {
         long currentTime = System.currentTimeMillis() / 1000;
         // adjust time to parent block this may happen due to system clocks difference
         //if (parent.getTimestamp() >= time) time = parent.getTimestamp() + 1;
@@ -552,7 +588,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     //IMPORTANT
-    public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles, long time) {
+    //public synchronized Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles, long time) {
+    public Block createNewBlock(Block parent, List<Transaction> txs, List<BlockHeader> uncles, long time) {
         //if the parent was created by this miner, then it should not be created
         final long blockNumber = parent.getNumber() + 1;
 
@@ -606,7 +643,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     //    @Override
-    public synchronized BlockSummary add(Repository repo, final Block block) {
+    //public synchronized BlockSummary add(Repository repo, final Block block) {
+    public BlockSummary add(Repository repo, final Block block) {
         //This triggers the validation of this just-mined block
         BlockSummary summary = addImpl(repo, block);
 
@@ -630,8 +668,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         return summary;
     }
 
-    public synchronized BlockSummary addImpl(Repository repo, final Block block) {
-
+    //public synchronized BlockSummary addImpl(Repository repo, final Block block) {
+    public BlockSummary addImpl(Repository repo, final Block block){ 
         if (exitOn < block.getNumber()) {
             System.out.print("Exiting after block.number: " + bestBlock.getNumber());
             dbFlushManager.flushSync();
@@ -1056,8 +1094,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     @Override
-    public synchronized void storeBlock(Block block, List<TransactionReceipt> receipts) {
-
+    //public synchronized void storeBlock(Block block, List<TransactionReceipt> receipts) {
+    public void storeBlock(Block block, List<TransactionReceipt> receipts) {
         if (fork)
             blockStore.saveBlock(block, totalDifficulty, false);
         else

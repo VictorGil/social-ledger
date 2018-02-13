@@ -22,7 +22,6 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import org.ethereum.config.SystemProperties;
-import org.ethereum.crypto.ECKey;
 import org.ethereum.net.rlpx.Node;
 import org.ethereum.net.server.WireTrafficStats;
 import org.slf4j.LoggerFactory;
@@ -34,9 +33,9 @@ import java.net.BindException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-
-import static org.ethereum.crypto.HashUtil.sha3;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class UDPListener {
@@ -105,7 +104,13 @@ public class UDPListener {
     public void start(String[] args) throws Exception {
 
         logger.info("Discovery UDPListener started");
-        NioEventLoopGroup group = new NioEventLoopGroup(1);
+        NioEventLoopGroup group = new NioEventLoopGroup(1, new ThreadFactory() {
+            AtomicInteger cnt = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, "DiscoveryUDPListenerNioELG-" + cnt.getAndIncrement());
+            }
+        });
 
         final List<Node> bootNodes = new ArrayList<>();
 

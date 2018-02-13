@@ -18,16 +18,21 @@
 package org.ethereum.listener;
 
 import org.ethereum.core.*;
+import org.ethereum.net.eth.message.EthMessageCodes;
 import org.ethereum.net.eth.message.StatusMessage;
 import org.ethereum.net.message.Message;
 import org.ethereum.net.p2p.HelloMessage;
 import org.ethereum.net.rlpx.Node;
 import org.ethereum.net.server.Channel;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @author Roman Mandeleil
@@ -36,7 +41,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component(value = "EthereumListener")
 public class CompositeEthereumListener implements EthereumListener {
 
-    private static abstract class RunnableInfo implements Runnable {
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(CompositeEthereumListener.class);
+    
+    private static abstract class RunnableInfo implements Runnable {                
         private EthereumListener listener;
         private String info;
 
@@ -65,6 +72,8 @@ public class CompositeEthereumListener implements EthereumListener {
 
     @Override
     public void trace(final String output) {
+        //socialLedgerLogger.info("Trace method started");
+        
         for (final EthereumListener listener : listeners) {
             eventDispatchThread.invokeLater(new RunnableInfo(listener, "trace") {
                 @Override
@@ -77,22 +86,30 @@ public class CompositeEthereumListener implements EthereumListener {
 
     @Override
     public void onBlock(final BlockSummary blockSummary) {
+        socialLedgerLogger.info("onBlock method started");
+        
         for (final EthereumListener listener : listeners) {
             eventDispatchThread.invokeLater(new RunnableInfo(listener, "onBlock") {
                 @Override
                 public void run() {
+                    socialLedgerLogger.info("RunnableInfo run method started: " + this.toString());
                     listener.onBlock(blockSummary);
                 }
             });
         }
+        socialLedgerLogger.info("onBlock method finished");
     }
 
     @Override
     public void onRecvMessage(final Channel channel, final Message message) {
+        if (message.getCommand() == EthMessageCodes.NEW_BLOCK)
+            socialLedgerLogger.info("onRecvMessage method started. Message command: " + message.getCommand());
         for (final EthereumListener listener : listeners) {
             eventDispatchThread.invokeLater(new RunnableInfo(listener, "onRecvMessage") {
                 @Override
                 public void run() {
+                    if (message.getCommand() == EthMessageCodes.NEW_BLOCK)
+                        socialLedgerLogger.info("RunnableInfo run method started: " + message.getCommand() + ". " + this.toString());
                     listener.onRecvMessage(channel, message);
                 }
             });
@@ -105,6 +122,8 @@ public class CompositeEthereumListener implements EthereumListener {
             eventDispatchThread.invokeLater(new RunnableInfo(listener, "onSendMessage") {
                 @Override
                 public void run() {
+                    if (message.getCommand() == EthMessageCodes.NEW_BLOCK)
+                        socialLedgerLogger.info("RunnableInfo run method started: " + message.getCommand() + ". " + this.toString());
                     listener.onSendMessage(channel, message);
                 }
             });
@@ -153,6 +172,7 @@ public class CompositeEthereumListener implements EthereumListener {
             eventDispatchThread.invokeLater(new RunnableInfo(listener, "onSyncDone") {
                 @Override
                 public void run() {
+                    socialLedgerLogger.info("RunnableInfo run method started: " + this.toString());
                     listener.onSyncDone(state);
                 }
             });

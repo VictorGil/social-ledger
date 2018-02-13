@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * The class intended to serve as an 'Event Bus' where all EthereumJ events are
@@ -42,11 +43,14 @@ public class EventDispatchThread {
     private static final int[] queueSizeWarnLevels = new int[]{0, 10_000, 50_000, 100_000, 250_000, 500_000, 1_000_000, 10_000_000};
 
     private final BlockingQueue<Runnable> executorQueue = new LinkedBlockingQueue<Runnable>();
-    private final ExecutorService executor = new ThreadPoolExecutor(1, 1,
+    //TO DO: I can try to increase the number of threads of this ExecutorService
+    //private final ExecutorService executor = new ThreadPoolExecutor(1, 1,
+    private final ExecutorService executor = new ThreadPoolExecutor(2, 2,
             0L, TimeUnit.MILLISECONDS, executorQueue, new ThreadFactory() {
+        AtomicInteger cnt = new AtomicInteger(0);
         @Override
         public Thread newThread(Runnable r) {
-            return new Thread(r, "EDT");
+            return new Thread(r, "EDT-" + cnt.getAndIncrement());
         }
     });
 
@@ -84,11 +88,13 @@ public class EventDispatchThread {
                     r.run();
                     long t = (System.nanoTime() - taskStart) / 1_000_000;
                     taskStart = 0;
+                    /*
                     if (t > 1000) {
                         logger.warn("EDT task executed in more than 1 sec: " + t + "ms, " +
                         "Executor queue size: " + executorQueue.size());
 
                     }
+                    */
                 } catch (Exception e) {
                     logger.error("EDT task exception", e);
                 }

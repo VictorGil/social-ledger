@@ -134,7 +134,9 @@ public class Block {
         this.parsed = true;
     }
 
-    private synchronized void parseRLP() {
+    //maybe this should not be synchronized
+    //private synchronized void parseRLP() {
+    private void parseRLP(){
         if (parsed) return;
 
         RLPList params = RLP.decode2(rlpEncoded);

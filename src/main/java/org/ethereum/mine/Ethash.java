@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.Block;
@@ -220,8 +221,13 @@ public class Ethash {
                 //as per now, we use a hardcoded very-low difficulty
                 final long LOW_DIFFICULTY = 5L;
                 
-                socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY);
-                block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
+                if (block.getNumber() == 1) {
+                    socialLedgerLogger.debug("This block is the child of the Genesis block: " + block.getShortDescr());    
+                } else {
+                    socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY + 
+                            ". This block: " + block.getShortDescr());
+                    block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
+                }
                 
                 long nonce = getEthashAlgo().mine(getFullSize(), getFullDataset(),
                         sha3(block.getHeader().getEncodedWithoutNonce()),

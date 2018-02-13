@@ -50,7 +50,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PeerClient {
 
     private static final Logger logger = LoggerFactory.getLogger("net");
-
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(PeerClient.class);
+    
     @Autowired
     SystemProperties config;
 
@@ -63,7 +64,8 @@ public class PeerClient {
     private EventLoopGroup workerGroup;
 
     public PeerClient() {
-        workerGroup = new NioEventLoopGroup(0, new ThreadFactory() {
+        socialLedgerLogger.info("EthJClientWorker is going to have 2 threads");
+        workerGroup = new NioEventLoopGroup(2, new ThreadFactory() {
             AtomicInteger cnt = new AtomicInteger(0);
             @Override
             public Thread newThread(Runnable r) {

@@ -58,6 +58,8 @@ public class MessageCodec extends MessageToMessageCodec<Frame, Message> {
     private static final Logger loggerWire = LoggerFactory.getLogger("wire");
     private static final Logger loggerNet = LoggerFactory.getLogger("net");
 
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(MessageCodec.class);
+    
     public static final int NO_FRAMING = Integer.MAX_VALUE >> 1;
 
     private int maxFramePayloadSize = NO_FRAMING;
@@ -134,10 +136,16 @@ public class MessageCodec extends MessageToMessageCodec<Frame, Message> {
             if (curSize == frameParts.getLeft().get(0).totalFrameSize) {
                 Message message = decodeMessage(ctx, frameParts.getLeft());
                 incompleteFrames.remove(frame.contextId);
+                if (message.getCommand() == EthMessageCodes.NEW_BLOCK){
+                    socialLedgerLogger.info("New Block message decoded");
+                }
                 out.add(message);
             }
         } else {
             Message message = decodeMessage(ctx, Collections.singletonList(frame));
+            if (message.getCommand() == EthMessageCodes.NEW_BLOCK){
+                socialLedgerLogger.info("New Block message decoded");
+            }
             out.add(message);
         }
     }

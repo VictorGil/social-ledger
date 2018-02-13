@@ -60,7 +60,8 @@
     <logger name="org.springframework" level="ERROR"/>
     <logger name="state" level="WARN"/>
     <logger name="trie" level="ERROR"/>
-    <logger name="net" level="DEBUG"/>
+    <!--logger name="net" level="DEBUG"/-->
+    <logger name="net" level="INFO"/>
     <logger name="execute" level="ERROR"/>
     <logger name="VM" level="ERROR"/>
     <logger name="pending" level="DEBUG"/>
@@ -102,7 +103,10 @@
     <logger level="INFO" name="stat"/>
 
     <logger level="INFO" name="discover"/>
-    <logger level="INFO" name="sync"/>
+    
+    <!--logger level="INFO" name="sync"/-->
+    <logger level="DEBUG" name="sync"/>
+    
     <logger level="TRACE" name="notification"/>
 
 </configuration>

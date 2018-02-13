@@ -18,9 +18,8 @@
 package org.ethereum.mine;
 
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
 
 //import net.devaction.socialledger.ethereum.mine.BlockCompliantChecker;
 
@@ -313,7 +312,7 @@ public class BlockMiner {
         
         Block newMiningBlock = getNewBlockForMining();
 
-        synchronized(this) {
+        //synchronized(this) {
             cancelCurrentBlock();
             miningBlock = newMiningBlock;
 
@@ -340,14 +339,15 @@ public class BlockMiner {
                             final Block minedBlock = task.get().block;
                             blockMined(minedBlock);
                         } catch (InterruptedException | CancellationException e) {
-                            // OK, we've been cancelled, just exit
+                            logger.warn("Exception during mining: ", e);
                         } catch (Exception e) {
                             logger.warn("Exception during mining: ", e);
                         }
                     }
-                }, MoreExecutors.sameThreadExecutor());
+                //}, MoreExecutors.sameThreadExecutor());
+                }, Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("currentMiningTasks-%d").build()));
             }
-        }
+        //}
         fireBlockStarted(newMiningBlock);
         logger.debug("New block mining started: {}", newMiningBlock.getShortHash());
     }
@@ -381,9 +381,9 @@ public class BlockMiner {
         cancelCurrentBlock();
 
         // broadcast the block
-        logger.debug("Importing newly mined block {} {} ...", newBlock.getShortHash(), newBlock.getNumber());
+        logger.info("Importing newly mined block {} {} ...", newBlock.getShortHash(), newBlock.getNumber());
         ImportResult importResult = ((EthereumImpl) ethereum).addNewMinedBlock(newBlock);        
-        logger.debug("Mined block import result is " + importResult);
+        logger.info("Mined block import result is " + importResult);
     }
 
     public boolean isMining() {

@@ -20,6 +20,8 @@ package org.ethereum.net.eth.handler;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.netty.channel.ChannelHandlerContext;
+import net.devaction.socialledger.ethereum.core.ReceivedBlockTooNewSleeper;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.*;
@@ -35,7 +37,6 @@ import org.ethereum.sync.SyncManager;
 import org.ethereum.sync.PeerState;
 import org.ethereum.sync.SyncStatistics;
 import org.ethereum.util.ByteUtil;
-import org.ethereum.util.Utils;
 import org.ethereum.validator.BlockHeaderRule;
 import org.ethereum.validator.BlockHeaderValidator;
 import org.slf4j.Logger;
@@ -48,6 +49,14 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Nullable;
 import java.math.BigInteger;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.Math.min;
 import static java.util.Collections.singletonList;
@@ -57,6 +66,13 @@ import static org.ethereum.sync.PeerState.*;
 import static org.ethereum.sync.PeerState.BLOCK_RETRIEVING;
 import static org.ethereum.util.Utils.longToTimePeriod;
 import static org.spongycastle.util.encoders.Hex.toHexString;
+
+import static org.ethereum.core.ImportResult.BEST_WAITING_IN_TIME_SLOT;
+import static org.ethereum.core.ImportResult.IMPORTED_BEST;
+import static org.ethereum.core.ImportResult.IMPORTED_NOT_BEST;
+import static org.ethereum.core.ImportResult.NO_PARENT;
+
+import org.ethereum.core.ImportResult;
 
 /**
  * Eth 62
@@ -73,6 +89,27 @@ public class Eth62 extends EthHandler {
     protected final static Logger logger = LoggerFactory.getLogger("sync");
     protected final static Logger loggerNet = LoggerFactory.getLogger("net");
 
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(Eth62.class);
+    
+    private static final int NUMBER_OF_THREADS = 2;
+    private static final ExecutorService EXECUTOR = constructExecutor(NUMBER_OF_THREADS);
+    
+    
+    private static ExecutorService constructExecutor(int numberOfThreads){
+        ThreadFactory threadFactory = new ThreadFactory() {
+            AtomicInteger cnt = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, "processNewBlock-" + cnt.getAndIncrement());
+            }
+        };
+        
+        //TO DO: better use this instead of a Fixed Thread Pool
+        //new ThreadPoolExecutor(2, 2, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+        
+        return Executors.newFixedThreadPool(numberOfThreads, threadFactory);
+    }
+    
     @Autowired
     protected BlockStore blockstore;
 
@@ -305,12 +342,18 @@ public class Eth62 extends EthHandler {
         return futureBlocks;
     }
 
+    //this gets blocked
     @Override
-    public synchronized void sendNewBlock(Block block) {
-        BigInteger parentTD = blockstore.getTotalDifficultyForHash(block.getParentHash());
-        byte[] td = ByteUtil.bigIntegerToBytes(parentTD.add(new BigInteger(1, block.getDifficulty())));
-        NewBlockMessage msg = new NewBlockMessage(block, td);
-        sendMessage(msg);
+    //public synchronized void sendNewBlock(Block block) {
+    public void sendNewBlock(Block block) {
+        Object lock = new Object();
+        
+        synchronized(lock) {
+            BigInteger parentTD = blockstore.getTotalDifficultyForHash(block.getParentHash());
+            byte[] td = ByteUtil.bigIntegerToBytes(parentTD.add(new BigInteger(1, block.getDifficulty())));
+            NewBlockMessage msg = new NewBlockMessage(block, td);
+            sendMessage(msg);
+        }
     }
 
     /*************************
@@ -496,12 +539,60 @@ public class Eth62 extends EthHandler {
         peerState = IDLE;
     }
 
-    protected synchronized void processNewBlock(NewBlockMessage newBlockMessage) {
+    //Maybe this should not be synchronized
+    //protected synchronized void processNewBlock(NewBlockMessage newBlockMessage) {
+    protected void processNewBlock(NewBlockMessage newBlockMessage){
+        ProcessNewBlockRunner runner = new ProcessNewBlockRunner(this, newBlockMessage);
+        
+        try{
+            EXECUTOR.submit(runner);
+        } catch (RejectedExecutionException exception){
+            socialLedgerLogger.error(exception.toString(), exception);
+        }
+    }
 
+    protected void processNewBlockAsynchronously(NewBlockMessage newBlockMessage){
+        logger.info("Going to process a NewBlockMessage object");
         Block newBlock = newBlockMessage.getBlock();
 
-        logger.debug("New block received: block.index [{}]", newBlock.getNumber());
+        logger.info("New block received: block.index [{}], " + newBlock.getShortDescr(), newBlock.getNumber());
+        
+        //if the block is too new, wait a little (e.g. up to 200 milliseconds) because we may be mining a competitor block
+        //and this block may interfere, the block which we are mining should be mined first
+        ReceivedBlockTooNewSleeper.waitIfRequired(newBlock);
+        
+        ///*
+        ImportResult importResult;
+        //synchronized (blockchain) {
+            importResult = blockchain.tryToConnect(newBlock);
+        //}
+        
+        if (importResult == BEST_WAITING_IN_TIME_SLOT || 
+                importResult == ImportResult.NOT_BEST_WAITING_IN_TIME_SLOT){
+            socialLedgerLogger.debug("Going to wait/sleep in case other competing blocks arrive");
+            importResult = blockchain.waitForEndOfTimeSlot(newBlock, importResult);
+        }
+        
+        if (importResult == IMPORTED_BEST) {
+            logger.info("Success importing BEST: block.number: {}, block.hash: {}, tx.size: {}",
+                    newBlock.getNumber(), newBlock.getShortHash(),
+                    newBlock.getTransactionsList().size());
+        }
 
+        if (importResult == IMPORTED_NOT_BEST)
+            logger.info("Success importing NOT_BEST: block.number: {}, block.hash: {}, tx.size: {}",
+                    newBlock.getNumber(), newBlock.getShortHash(),
+                    newBlock.getTransactionsList().size());
+
+        // In case we don't have a parent on the chain
+        // return the try and wait for more blocks to come.
+        if (importResult == NO_PARENT) {
+            logger.error("No parent on the chain for block.number: {} block.hash: {}",
+                    newBlock.getNumber(), newBlock.getShortHash());
+        }
+        //*/
+        
+        /*
         updateTotalDifficulty(newBlockMessage.getDifficultyAsBigInt());
 
         updateBestBlock(newBlock);
@@ -509,14 +600,17 @@ public class Eth62 extends EthHandler {
         if (!syncManager.validateAndAddNewBlock(newBlock, channel.getNodeId())) {
             dropConnection();
         }
+        */        
     }
-
+    
     /*************************
      *    Sync Management    *
      *************************/
 
     @Override
-    public synchronized void onShutdown() {
+    public synchronized void onShutdown(){
+        //this causes java.util.concurrent.RejectedExecutionException 
+        //EXECUTOR.shutdown();
     }
 
     @Override

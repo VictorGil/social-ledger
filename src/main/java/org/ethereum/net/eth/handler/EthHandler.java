@@ -45,6 +45,8 @@ public abstract class EthHandler extends SimpleChannelInboundHandler<EthMessage>
 
     private final static Logger logger = LoggerFactory.getLogger("net");
 
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(EthHandler.class);
+            
     protected Blockchain blockchain;
 
     protected SystemProperties config;
@@ -88,7 +90,9 @@ public abstract class EthHandler extends SimpleChannelInboundHandler<EthMessage>
 
     @Override
     public void channelRead0(final ChannelHandlerContext ctx, EthMessage msg) throws InterruptedException {
-
+        if (msg.getCommand() == EthMessageCodes.NEW_BLOCK)
+            socialLedgerLogger.info("New EthMessage passed to channelRead0 method, message command: " + msg.getCommand());
+        
         if (EthMessageCodes.inRange(msg.getCommand().asByte(), version))
             logger.trace("EthHandler invoke: [{}]", msg.getCommand());
 

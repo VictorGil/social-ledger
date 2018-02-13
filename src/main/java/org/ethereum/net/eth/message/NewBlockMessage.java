@@ -18,9 +18,11 @@
 package org.ethereum.net.eth.message;
 
 import org.ethereum.core.Block;
+import org.ethereum.net.eth.handler.EthHandler;
 import org.ethereum.util.RLP;
 import org.ethereum.util.RLPList;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 
 import java.math.BigInteger;
@@ -31,7 +33,7 @@ import java.math.BigInteger;
  * @see EthMessageCodes#NEW_BLOCK
  */
 public class NewBlockMessage extends EthMessage {
-
+    private static final Logger socialLedgerLogger = LoggerFactory.getLogger(NewBlockMessage.class);
     private Block block;
     private byte[] difficulty;
 
@@ -53,7 +55,9 @@ public class NewBlockMessage extends EthMessage {
         this.encoded = RLP.encodeList(block, diff);
     }
 
-    private synchronized void parse() {
+    private synchronized void parse(){
+        socialLedgerLogger.info("Going to parse a NewBlockMessage");
+        
         if (parsed) return;
         RLPList paramsList = (RLPList) RLP.decode2(encoded).get(0);
 
@@ -62,6 +66,7 @@ public class NewBlockMessage extends EthMessage {
         difficulty = paramsList.get(1).getRLPData();
 
         parsed = true;
+        socialLedgerLogger.info("NewBlockMessage has been parsed");
     }
 
     public Block getBlock() {

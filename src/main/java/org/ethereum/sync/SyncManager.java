@@ -358,12 +358,12 @@ public class SyncManager extends BlockDownloader {
                 wrappers.add(wrapper);
             }
 
-            logger.trace("Pushing " + wrappers.size() + " new blocks to import queue: " + (wrappers.isEmpty() ? "" :
+            logger.debug("Pushing " + wrappers.size() + " new blocks to import queue: " + (wrappers.isEmpty() ? "" :
                     wrappers.get(0).getBlock().getShortDescr() + " ... " + wrappers.get(wrappers.size() - 1).getBlock().getShortDescr()));
             pushBlocks(wrappers);
         }
 
-        logger.trace("Blocks waiting to be proceed:  queue.size: [{}] lastBlock.number: [{}]",
+        logger.debug("Blocks waiting to be proceed:  queue.size: [{}] lastBlock.number: [{}]",
                 blockQueue.size(),
                 block.getNumber());
 

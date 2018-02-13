@@ -158,6 +158,7 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
                 //we broadcast the new block before waiting/sleeping
                 socialLedgerLogger.debug("Going to broadcast the new mined block " + block.getShortDescr() + " before waiting/sleeping");
                 channelManager.sendNewBlock(block);
+                socialLedgerLogger.debug("New mined block " + block.getShortDescr() + " has been broadcasted");
             }
             importResult = worldManager.getBlockchain().waitForEndOfTimeSlot(block, importResult);
             //should we broadcast the new best (mined) block again? Probably not.
@@ -166,8 +167,9 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
         
         if (importResult == ImportResult.IMPORTED_BEST) {
             socialLedgerLogger.debug("Going to broadcast the new mined block " + block.getShortDescr() + 
-                    " we did not have to wait/sleep");
+                    " we do not have to wait/sleep");
             channelManager.sendNewBlock(block);
+            socialLedgerLogger.debug("New mined block " + block.getShortDescr() + " has been broadcasted without need to sleep/wait");
         }
         return importResult;
     }
