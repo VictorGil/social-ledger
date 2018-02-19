@@ -258,6 +258,7 @@ public class BlockchainInfoService implements ApplicationListener {
         return lastBlocksForClient;
     }
 
+    @SuppressWarnings("restriction")
     @Scheduled(fixedRate = 5000)
     private void doUpdateMachineInfoStatus() {
         final OperatingSystemMXBean bean = (OperatingSystemMXBean) ManagementFactory
