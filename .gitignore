@@ -21,3 +21,11 @@ access.info
 
 # Local configuration
 **/user.conf
+/bin/
+
+#Added by Víctor Gil because I am using Eclipse IDE
+/target
+/.settings
+/.project
+/.classpath
+.gitignore
