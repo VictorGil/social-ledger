@@ -44,7 +44,6 @@ public class SocialLedgerManager{
     private BlockchainImpl blockchain;
     
     private volatile long firstBlockMinedByUsTimestamp = -1L;
-    //private volatile long firstConflictBlockTimestamp = -1L;
     
     private SocialLedgerManager(BlockchainImpl blockchain){
         this.blockchain = blockchain;
@@ -114,25 +113,17 @@ public class SocialLedgerManager{
                 socialLedgerLogger.info("There is a competing block to be the chosen child of " + 
                         ByteUtil.toHexString(block.getParentHash()) + ". Current block: " + 
                         currentBlock.getShortDescr() + 
-                        ". New (competing) block: " + block.getShortDescr());     
-                if (firstBlockMinedByUsTimestamp != -1 && firstBlockMinedByUsTimestamp < block.getTimestamp() 
-                        //|| (firstConflictBlockTimestamp != -1 && firstConflictBlockTimestamp < block.getTimestamp())) {
-                        ){
+                        ". New (competing) block: " + block.getShortDescr());               
+                 
+                //IMPORTANT: so far we just use the dummie implementation
+                BestBlockSelector bestBlockSelector = DummieBestBlockSelector.getInstance();  
+                //BestBlockSelector bestBlockSelector = BestBlockSelectorBasedOnExtraData.getInstance();
                     
-                    //IMPORTANT: so far we just use the dummie implementation
-                    BestBlockSelector bestBlockSelector = DummieBestBlockSelector.getInstance();  
-                    //BestBlockSelector bestBlockSelector = BestBlockSelectorBasedOnExtraData.getInstance();
-                    
-                    BestBlock bestBlock = bestBlockSelector.select(currentBlock, block);
-                    if (bestBlock == BLOCK2){            
-                        blocksCallableMap.get(parentHashBytesList).setBlock(block);
-                    }
-                } else{
-                   //TO DO: I do not think we need this, we do not need to treat the first conflict differently than the rest
-                   socialLedgerLogger.info("Since it is the first conflict, we accept the other miner's block to prevent a timing issue");
-                   if (didWeMineIt(block))
-                       firstBlockMinedByUsTimestamp = block.getTimestamp();
+                BestBlock bestBlock = bestBlockSelector.select(currentBlock, block);
+                if (bestBlock == BLOCK2){            
+                    blocksCallableMap.get(parentHashBytesList).setBlock(block);
                 }
+
                 future =  blocksCallableMap.get(parentHashBytesList).getFuture();
                 socialLedgerLogger.info("Going to wait in case more competing blocks arrive. " + 
                         "Exiting the synchronized block now");
