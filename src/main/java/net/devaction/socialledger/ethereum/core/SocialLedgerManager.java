@@ -23,6 +23,8 @@ import net.devaction.socialledger.algorithm.BestBlock;
 import net.devaction.socialledger.algorithm.BestBlockSelector;
 import net.devaction.socialledger.algorithm.DummieBestBlockSelector;
 import net.devaction.socialledger.ethereum.core.extradata.BasicExtradataValidator;
+import net.devaction.socialledger.validatorusingtwitter.verify.HashcodeValidator;
+import net.devaction.socialledger.validatorusingtwitter.verify.TwitterUserValidator;
 
 import java.util.concurrent.Future;
 
@@ -41,12 +43,17 @@ public class SocialLedgerManager{
     //better to use a map so far, just in case
     private final Map<List<Byte>, WaitingCallable> blocksCallableMap = new ConcurrentHashMap<List<Byte>, WaitingCallable>();
     
-    private BlockchainImpl blockchain;
+    private final BlockchainImpl blockchain;
     
     private volatile long firstBlockMinedByUsTimestamp = -1L;
     
+    private final TwitterUserValidator twitterUserValidator;
+    private final HashcodeValidator hashcodeVerifier; 
+    
     private SocialLedgerManager(BlockchainImpl blockchain){
         this.blockchain = blockchain;
+        this.twitterUserValidator = TwitterUserValidator.getInstance();
+        this.hashcodeVerifier = HashcodeValidator.getInstance();
     }
     
     public static SocialLedgerManager getInstance(BlockchainImpl blockchain){
@@ -86,7 +93,7 @@ public class SocialLedgerManager{
             return ImportResult.INVALID_BLOCK;
         }
         
-        
+ 
         
         socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
