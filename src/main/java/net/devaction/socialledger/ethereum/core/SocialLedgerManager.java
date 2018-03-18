@@ -23,8 +23,9 @@ import net.devaction.socialledger.algorithm.BestBlock;
 import net.devaction.socialledger.algorithm.BestBlockSelector;
 import net.devaction.socialledger.algorithm.DummieBestBlockSelector;
 import net.devaction.socialledger.ethereum.core.extradata.BasicExtradataValidator;
-import net.devaction.socialledger.validatorusingtwitter.verify.HashcodeValidator;
-import net.devaction.socialledger.validatorusingtwitter.verify.TwitterUserValidator;
+import net.devaction.socialledger.ethereum.core.extradata.UsernameProvider;
+import net.devaction.socialledger.validatorusingtwitter.validate.HashcodeValidator;
+import net.devaction.socialledger.validatorusingtwitter.validate.TwitterUserValidator;
 
 import java.util.concurrent.Future;
 
@@ -93,7 +94,13 @@ public class SocialLedgerManager{
             return ImportResult.INVALID_BLOCK;
         }
         
- 
+        String twitterUsername = UsernameProvider.provide(block.getExtraData());
+        if (!twitterUserValidator.validate(twitterUsername)){
+            socialLedgerLogger.warn("Invalid Twitter username in block with number: " + block.getNumber() + 
+                    ". Block: " + block.getShortDescr() + ". Twitter username in extradata: " + twitterUsername);
+        }
+        
+        
         
         socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
