@@ -13,7 +13,15 @@ import static net.devaction.socialledger.algorithm.BestBlock.BLOCK1;
 public class DummieBestBlockSelector implements BestBlockSelector{
 
     private static final Logger socialLedgerLogger = LoggerFactory.getLogger(DummieBestBlockSelector.class);
+    private static BestBlockSelector INSTANCE;
     
+    public static BestBlockSelector getInstance(){
+        if (INSTANCE == null)
+            INSTANCE = new DummieBestBlockSelector();
+        return INSTANCE;        
+    }
+    
+    //this method is static, in practice
     @Override
     public BestBlock select(final Block block1, final Block block2){
         byte[] hash1 = block1.getHash();
@@ -31,8 +39,7 @@ public class DummieBestBlockSelector implements BestBlockSelector{
         return bestBlockEnum;
     }
     
-    //false means hash1 is the chosen one
-    //true means hash2 is the chosen one
+    //this method is static, in practice
     BestBlock select(final byte[] hash1, final byte[] hash2){
         for (int i = 0; i < hash1.length; i++){
             int int1 = Byte.toUnsignedInt(hash1[i]);
