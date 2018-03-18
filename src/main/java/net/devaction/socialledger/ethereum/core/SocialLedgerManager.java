@@ -21,6 +21,8 @@ import org.slf4j.LoggerFactory;
 
 import net.devaction.socialledger.algorithm.BestBlock;
 import net.devaction.socialledger.algorithm.BestBlockSelector;
+import net.devaction.socialledger.algorithm.DummieBestBlockSelector;
+import net.devaction.socialledger.ethereum.core.extradata.BasicExtradataValidator;
 
 import java.util.concurrent.Future;
 
@@ -76,9 +78,16 @@ public class SocialLedgerManager{
         Block parentBlock = blockchain.getBlockByHash(block.getParentHash());
         Repository repo = blockchain.getRepository().getSnapshotTo(parentBlock.getStateRoot());
         if (!blockchain.isValid(repo, block)) {
-            socialLedgerLogger.warn("Invalid block with number: {}", block.getNumber());
+            socialLedgerLogger.warn("Invalid block with number: " + block.getNumber() + ". Block: " + block.getShortDescr());
             return ImportResult.INVALID_BLOCK;
         }
+        
+        if (!BasicExtradataValidator.validate(block, blockchain)){
+            socialLedgerLogger.warn("Invalid extradata in block with number: " + block.getNumber() + ". Block: " + block.getShortDescr());
+            return ImportResult.INVALID_BLOCK;
+        }
+        
+        
         
         socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
@@ -109,7 +118,11 @@ public class SocialLedgerManager{
                 if (firstBlockMinedByUsTimestamp != -1 && firstBlockMinedByUsTimestamp < block.getTimestamp() 
                         //|| (firstConflictBlockTimestamp != -1 && firstConflictBlockTimestamp < block.getTimestamp())) {
                         ){
-                    BestBlockSelector bestBlockSelector = BestBlockSelector.getInstance();            
+                    
+                    //IMPORTANT: so far we just use the dummie implementation
+                    BestBlockSelector bestBlockSelector = DummieBestBlockSelector.getInstance();  
+                    //BestBlockSelector bestBlockSelector = BestBlockSelectorBasedOnExtraData.getInstance();
+                    
                     BestBlock bestBlock = bestBlockSelector.select(currentBlock, block);
                     if (bestBlock == BLOCK2){            
                         blocksCallableMap.get(parentHashBytesList).setBlock(block);
