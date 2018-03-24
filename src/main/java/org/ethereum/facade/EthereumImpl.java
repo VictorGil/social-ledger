@@ -32,6 +32,7 @@ import org.ethereum.manager.AdminInfo;
 import org.ethereum.manager.BlockLoader;
 import org.ethereum.manager.WorldManager;
 import org.ethereum.mine.BlockMiner;
+import org.ethereum.mine.Ethash;
 import org.ethereum.net.client.PeerClient;
 import org.ethereum.net.rlpx.Node;
 import org.ethereum.net.server.ChannelManager;
@@ -151,6 +152,14 @@ public class EthereumImpl implements Ethereum, SmartLifecycle {
 
     //this seems to be important
     public ImportResult addNewMinedBlock(Block block) {
+        BigInteger difficulty = block.getDifficultyBI();
+        if (!difficulty.equals(BigInteger.valueOf(Ethash.LOW_DIFFICULTY))){
+            socialLedgerLogger.warn("The difficulty of the received block " + block.getShortDescr() + " (" +  
+                    block.getDifficultyBI() +") " + " is different than " + Ethash.LOW_DIFFICULTY + 
+                    ", block will NOT be processed");
+            return ImportResult.INVALID_BLOCK;
+        }
+        
         ImportResult importResult = worldManager.getBlockchain().tryToConnect(block);
         if (importResult == BEST_WAITING_IN_TIME_SLOT || 
                 importResult == NOT_BEST_WAITING_IN_TIME_SLOT){
