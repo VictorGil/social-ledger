@@ -223,7 +223,7 @@ public class Ethash {
                 
                 if (block.getNumber() == 1) {
                     socialLedgerLogger.debug("This block is the child of the Genesis block: " + block.getShortDescr());    
-                } else {
+                //} else {
                     socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY + 
                             ". This block: " + block.getShortDescr());
                     block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
