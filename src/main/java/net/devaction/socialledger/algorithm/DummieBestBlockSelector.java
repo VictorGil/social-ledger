@@ -10,20 +10,10 @@ import static net.devaction.socialledger.algorithm.BestBlock.BLOCK1;
  * 
  * Since 23-JAN-2018 
  *  */
-public class DummieBestBlockSelector implements BestBlockSelector{
-
+public class DummieBestBlockSelector{
     private static final Logger socialLedgerLogger = LoggerFactory.getLogger(DummieBestBlockSelector.class);
-    private static BestBlockSelector INSTANCE;
-    
-    public static BestBlockSelector getInstance(){
-        if (INSTANCE == null)
-            INSTANCE = new DummieBestBlockSelector();
-        return INSTANCE;        
-    }
-    
-    //this method is static, in practice
-    @Override
-    public BestBlock select(final Block block1, final Block block2){
+        
+    public static BestBlock select(final Block block1, final Block block2){
         byte[] hash1 = block1.getHash();
         byte[] hash2 = block2.getHash();
         final BestBlock bestBlockEnum = select(hash1, hash2);
@@ -39,8 +29,7 @@ public class DummieBestBlockSelector implements BestBlockSelector{
         return bestBlockEnum;
     }
     
-    //this method is static, in practice
-    BestBlock select(final byte[] hash1, final byte[] hash2){
+    static BestBlock select(final byte[] hash1, final byte[] hash2){
         for (int i = 0; i < hash1.length; i++){
             int int1 = Byte.toUnsignedInt(hash1[i]);
             int int2 = Byte.toUnsignedInt(hash2[i]);

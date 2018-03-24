@@ -20,7 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.devaction.socialledger.algorithm.BestBlock;
-import net.devaction.socialledger.algorithm.BestBlockSelector;
+import net.devaction.socialledger.algorithm.BestBlockSelectorBasedOnExtraData;
 import net.devaction.socialledger.algorithm.DummieBestBlockSelector;
 import net.devaction.socialledger.ethereum.core.extradata.BasicExtradataValidator;
 import net.devaction.socialledger.ethereum.core.extradata.UsernameProvider;
@@ -159,11 +159,9 @@ public class SocialLedgerManager{
                         currentBlock.getShortDescr() + 
                         ". New (competing) block: " + block.getShortDescr());               
                  
-                //IMPORTANT: so far we just use the dummie implementation
-                BestBlockSelector bestBlockSelector = DummieBestBlockSelector.getInstance();  
-                //BestBlockSelector bestBlockSelector = BestBlockSelectorBasedOnExtraData.getInstance();
-                    
-                BestBlock bestBlock = bestBlockSelector.select(currentBlock, block);
+                //IMPORTANT: so far we just use the dummy implementation
+                BestBlock bestBlock = DummieBestBlockSelector.select(currentBlock, block);  
+
                 if (bestBlock == BLOCK2){            
                     blocksCallableMap.get(parentHashBytesList).setBlock(block);
                 }
