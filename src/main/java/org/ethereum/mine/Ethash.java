@@ -60,6 +60,7 @@ public class Ethash {
 
     public static boolean fileCacheEnabled = true;
 
+    public static final long LOW_DIFFICULTY = 1L;
     /**
      * Returns instance for the specified block number either from cache or calculates a new one
      */
@@ -217,17 +218,16 @@ public class Ethash {
             @Override
             public MiningResult call() throws Exception {
                 long threadStartNonce = taskStartNonce.getAndAdd(0x100000000L);
-                //VIC: we do not use the difficulty of the block header
-                //as per now, we use a hardcoded very-low difficulty
-                final long LOW_DIFFICULTY = 5L;
                 
                 if (block.getNumber() == 1) {
-                    socialLedgerLogger.debug("This block is the child of the Genesis block: " + block.getShortDescr());    
+                    socialLedgerLogger.debug("This block is the child of the Genesis block: " + block.getShortDescr());                 
+                }   
                 //} else {
-                    socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY + 
-                            ". This block: " + block.getShortDescr());
-                    block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
-                }
+                socialLedgerLogger.debug("We are going to set a low difficulty in the block header: " + LOW_DIFFICULTY + 
+                        ". This block: " + block.getShortDescr());
+                //VIC: we do not use the difficulty of the block header
+                //as per now, we use a hardcoded very-low difficulty
+                 block.getHeader().setDifficulty(ByteUtil.longToBytes(LOW_DIFFICULTY));
                 
                 long nonce = getEthashAlgo().mine(getFullSize(), getFullDataset(),
                         sha3(block.getHeader().getEncodedWithoutNonce()),
