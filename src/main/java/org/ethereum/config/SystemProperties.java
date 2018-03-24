@@ -928,4 +928,25 @@ public class SystemProperties {
         return config.hasPath("GitHubTests.testPath") &&
                 !config.getString("GitHubTests.testPath").isEmpty();
     }
+    
+    //PROPERTIES NEEDED TO CONNECT TO THE TWITTER API
+    @ValidateMe
+    public String getTwitterConsumerApiKey(){
+        return config.getString("twitterConsumerApiKey");        
+    }
+    
+    @ValidateMe
+    public String getTwitterConsumerApiSecret(){
+        return config.getString("twitterConsumerApiSecret");        
+    }    
+    
+    @ValidateMe
+    public String getTwitterAccessToken() {
+        return config.getString("twitterAccessToken");        
+    }
+    
+    @ValidateMe
+    public String getTwitterAccessTokenSecret() {
+        return config.getString("twitterAccessTokenSecret");        
+    }    
 }

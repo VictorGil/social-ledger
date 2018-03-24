@@ -20,6 +20,7 @@ package org.ethereum.mine;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
+import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
 
 //import net.devaction.socialledger.ethereum.mine.BlockCompliantChecker;
 
@@ -44,8 +45,6 @@ import java.util.*;
 import java.util.concurrent.*;
 
 import static java.lang.Math.max;
-
-import static net.devaction.socialledger.ethereum.core.SocialLedgerManager.TIME_SLOT_IN_SECS;
 
 /**
  * Manages embedded CPU mining and allows to use external miners.
@@ -371,6 +370,8 @@ public class BlockMiner {
         }
         //this is needed by the Social Ledger algorithm
         lastMinedBlock = newBlock;
+        
+        SocialLedgerManager.getInstance((BlockchainImpl) blockchain).tweet(newBlock.getHash());
         
         fireBlockMined(newBlock);
         logger.info("Wow, block mined !!!: {}", newBlock.toString());

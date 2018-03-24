@@ -1423,4 +1423,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     public void setPruneManager(PruneManager pruneManager) {
         this.pruneManager = pruneManager;
     }
+
+    public SystemProperties getConfig(){
+        return config;
+    }
 }

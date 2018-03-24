@@ -24,6 +24,8 @@ import net.devaction.socialledger.algorithm.BestBlockSelector;
 import net.devaction.socialledger.algorithm.DummieBestBlockSelector;
 import net.devaction.socialledger.ethereum.core.extradata.BasicExtradataValidator;
 import net.devaction.socialledger.ethereum.core.extradata.UsernameProvider;
+import net.devaction.socialledger.validatorusingtwitter.TwitterProvider;
+import net.devaction.socialledger.validatorusingtwitter.tweet.TextTweetter;
 import net.devaction.socialledger.validatorusingtwitter.validate.HashcodeValidator;
 import net.devaction.socialledger.validatorusingtwitter.validate.TwitterUserValidator;
 
@@ -38,7 +40,8 @@ import static net.devaction.socialledger.algorithm.BestBlock.BLOCK2;
 public class SocialLedgerManager{
     private static final Logger socialLedgerLogger = LoggerFactory.getLogger(SocialLedgerManager.class);
     private static SocialLedgerManager INSTANCE;
-    public static final int TIME_SLOT_IN_SECS = 10;
+    //40 seconds because of twitter API tweeting limit 
+    public static final int TIME_SLOT_IN_SECS = 40;
     
     //Maybe there is always just one entry in this map at most but I am not sure
     //better to use a map so far, just in case
@@ -49,12 +52,22 @@ public class SocialLedgerManager{
     private volatile long firstBlockMinedByUsTimestamp = -1L;
     
     private final TwitterUserValidator twitterUserValidator;
-    private final HashcodeValidator hashcodeVerifier; 
-    
+    private final HashcodeValidator hashcodeValidator; 
+    private final TextTweetter textTweetter;
+
     private SocialLedgerManager(BlockchainImpl blockchain){
+        String twitterApiKey = blockchain.getConfig().getTwitterConsumerApiKey();
+        String twitterApiSecret = blockchain.getConfig().getTwitterConsumerApiSecret();
+        String twitterAccessToken = blockchain.getConfig().getTwitterAccessToken();
+        String twitterAccessTokenSecret = blockchain.getConfig().getTwitterAccessTokenSecret();
+        
+        TwitterProvider twitterProvider = new TwitterProvider(
+                twitterApiKey, twitterApiSecret, twitterAccessToken, twitterAccessTokenSecret);
+        
         this.blockchain = blockchain;
-        this.twitterUserValidator = TwitterUserValidator.getInstance();
-        this.hashcodeVerifier = HashcodeValidator.getInstance();
+        this.twitterUserValidator = new TwitterUserValidator(twitterProvider.provide());
+        this.hashcodeValidator = new HashcodeValidator(twitterProvider.provide());
+        this.textTweetter = new TextTweetter(twitterProvider.provide());        
     }
     
     public static SocialLedgerManager getInstance(BlockchainImpl blockchain){
@@ -67,8 +80,8 @@ public class SocialLedgerManager{
         
         //validate the block before sleeping/waiting
         Repository repo = blockchain.getRepository();
-        if (!blockchain.isValid(repo, block)) {
-            socialLedgerLogger.warn("Invalid block with number: {}", block.getNumber());
+        
+        if (!validateBlockUsingTwitter(repo, block)){
             return ImportResult.INVALID_BLOCK;
         }
         
@@ -84,27 +97,44 @@ public class SocialLedgerManager{
         //validate the block before sleeping/waiting
         Block parentBlock = blockchain.getBlockByHash(block.getParentHash());
         Repository repo = blockchain.getRepository().getSnapshotTo(parentBlock.getStateRoot());
+        
+        if (!validateBlockUsingTwitter(repo, block)){
+            return ImportResult.INVALID_BLOCK;
+        }
+        
+        return blockWaitForEndOfTimeSlot(block, parentTimestamp, false);
+    }
+
+    boolean validateBlockUsingTwitter(Repository repo, Block block){
         if (!blockchain.isValid(repo, block)) {
             socialLedgerLogger.warn("Invalid block with number: " + block.getNumber() + ". Block: " + block.getShortDescr());
-            return ImportResult.INVALID_BLOCK;
+            return false;
         }
         
         if (!BasicExtradataValidator.validate(block, blockchain)){
             socialLedgerLogger.warn("Invalid extradata in block with number: " + block.getNumber() + ". Block: " + block.getShortDescr());
-            return ImportResult.INVALID_BLOCK;
+            return false;
         }
         
         String twitterUsername = UsernameProvider.provide(block.getExtraData());
         if (!twitterUserValidator.validate(twitterUsername)){
             socialLedgerLogger.warn("Invalid Twitter username in block with number: " + block.getNumber() + 
                     ". Block: " + block.getShortDescr() + ". Twitter username in extradata: " + twitterUsername);
+            return false;
         }
         
-        
+        long blockTimestampInMillis = block.getTimestamp() * 1000;
+        long limitTimestampInMillis = blockTimestampInMillis - 1000 * 60 * 5;//5 minutes before 
+        String blockHashcodeString = ByteUtil.toHexString(block.getHash());        
+        if (!hashcodeValidator.validate(blockHashcodeString, twitterUsername, limitTimestampInMillis)){
+            socialLedgerLogger.warn("Could not validate the block hashcode in twitter: " + blockHashcodeString + 
+                    ". Block: " + block.getShortDescr() + ". Twitter username in extradata: " + twitterUsername);
+            return false;
+        }        
         
         socialLedgerLogger.info("Block has been validated: " + block.getShortDescr() + ". Now we need to wait until " + 
             "the end of the time-slot");
-        return blockWaitForEndOfTimeSlot(block, parentTimestamp, false);
+        return true;
     }
     
     ImportResult blockWaitForEndOfTimeSlot(final Block block, long parentTimestamp, boolean isBest){
@@ -214,5 +244,11 @@ public class SocialLedgerManager{
         }
         socialLedgerLogger.info("We did not mine this block: " + block.getShortDescr());
         return false;
+    }
+    
+    public void tweet(byte[] blockHash){
+        String blockHashString = ByteUtil.toHexString(blockHash);
+        socialLedgerLogger.info("Going to tweet: " + blockHashString);
+        textTweetter.tweet(blockHashString);
     }
 }
