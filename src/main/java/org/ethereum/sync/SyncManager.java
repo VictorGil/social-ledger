@@ -23,6 +23,7 @@ import org.ethereum.core.Blockchain;
 import org.ethereum.facade.SyncStatus;
 import org.ethereum.listener.CompositeEthereumListener;
 import org.ethereum.listener.EthereumListener;
+import org.ethereum.mine.Ethash;
 import org.ethereum.net.server.Channel;
 import org.ethereum.net.server.ChannelManager;
 import org.ethereum.util.ExecutorPipeline;
@@ -34,6 +35,7 @@ import org.spongycastle.util.encoders.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
@@ -251,6 +253,15 @@ public class SyncManager extends BlockDownloader {
 
                 long stale = !isSyncDone() && importStart > 0 && blockQueue.isEmpty() ? System.nanoTime() : 0;
                 wrapper = blockQueue.take();
+                
+                BigInteger difficulty = wrapper.getBlock().getDifficultyBI();
+                if (!difficulty.equals(BigInteger.valueOf(Ethash.LOW_DIFFICULTY))){
+                    socialLedgerLogger.warn("The difficulty of the received block " + wrapper.getBlock().getShortDescr() + " (" +  
+                            wrapper.getBlock().getDifficultyBI() +") " + " is different than " + Ethash.LOW_DIFFICULTY + 
+                            ", block will NOT be processed");
+                    continue;
+                }
+                
                 blockQueueByteSize.addAndGet(-estimateBlockSize(wrapper));
 
                 if (stale > 0) {
