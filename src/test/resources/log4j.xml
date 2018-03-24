@@ -23,6 +23,7 @@
     <logger name="org.jasypt">
         <level value="warn"/>
     </logger>
+    <!-- this does not seem to have any impact -->
     <logger name="twitter4j">
         <level value="warn"/>
     </logger>

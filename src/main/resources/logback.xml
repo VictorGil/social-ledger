@@ -106,7 +106,6 @@
     
     <!--logger level="INFO" name="sync"/-->
     <logger level="DEBUG" name="sync"/>
-    
     <logger level="TRACE" name="notification"/>
-
+    <logger level="WARN" name="twitter4j"/>
 </configuration>
