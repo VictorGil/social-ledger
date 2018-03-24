@@ -27,6 +27,7 @@ import org.ethereum.config.SystemProperties;
 import org.ethereum.core.*;
 import org.ethereum.db.BlockStore;
 import org.ethereum.listener.CompositeEthereumListener;
+import org.ethereum.mine.Ethash;
 import org.ethereum.net.eth.EthVersion;
 import org.ethereum.net.eth.message.*;
 import org.ethereum.net.message.ReasonCode;
@@ -554,8 +555,16 @@ public class Eth62 extends EthHandler {
     protected void processNewBlockAsynchronously(NewBlockMessage newBlockMessage){
         logger.info("Going to process a NewBlockMessage object");
         Block newBlock = newBlockMessage.getBlock();
-
+        
         logger.info("New block received: block.index [{}], " + newBlock.getShortDescr(), newBlock.getNumber());
+        
+        BigInteger difficulty = newBlock.getDifficultyBI();
+        if (!difficulty.equals(BigInteger.valueOf(Ethash.LOW_DIFFICULTY))){
+            socialLedgerLogger.warn("The difficulty of the received block " + newBlock.getShortDescr() + " (" +  
+                    newBlock.getDifficultyBI() +") " + " is different than " + Ethash.LOW_DIFFICULTY + 
+                    ", block will NOT be processed");
+            return;
+        }
         
         //if the block is too new, wait a little (e.g. up to 200 milliseconds) because we may be mining a competitor block
         //and this block may interfere, the block which we are mining should be mined first
