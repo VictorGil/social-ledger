@@ -78,7 +78,7 @@ if (project.hasProperty('useMavenLocal')) {
 
 repositories {
 
-//    mavenLocal()
+    mavenLocal()
     jcenter()
 
     mavenCentral()
@@ -195,7 +195,12 @@ dependencies {
     compile("com.googlecode.json-simple:json-simple:1.1.1") {
         exclude group: 'junit', module: 'junit'
     }
-
+    
+    compile("net.devaction.socialledger:validator-using-twitter:1.0.0.0-SNAPSHOT") {
+        exclude group: 'commons-logging', module: 'commons-logging'
+        exclude group: 'log4j', module: 'log4j'
+    }
+    
     // used to hide spring initialization logs messages in samples
     //optional "org.slf4j:jcl-over-slf4j:${slf4jVersion}"
 
