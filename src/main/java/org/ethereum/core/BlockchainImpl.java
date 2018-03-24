@@ -17,9 +17,8 @@
  */
 package org.ethereum.core;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
+import net.devaction.socialledger.ethereum.core.extradata.NumberOfDifferentExtradatasInChainProvider;
 
 import org.ethereum.config.BlockchainConfig;
 import org.ethereum.config.CommonConfig;
@@ -59,9 +58,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import java.util.concurrent.*;
-
-import static java.lang.Math.PI;
 import static java.lang.Math.max;
 import static java.lang.Runtime.getRuntime;
 import static java.math.BigInteger.ONE;
@@ -364,7 +360,11 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
     }
 
     //private synchronized BlockSummary tryConnectAndFork(final Block block) {
-    private BlockSummary tryConnectAndFork(final Block block) {
+    private BlockSummary tryConnectAndFork(final Block block){
+        Block currentBestBlock = this.bestBlock;
+        socialLedgerLogger.info("Current best block: " + currentBestBlock.getShortDescr() + 
+                ", challenger trying to become best block (which would cause a fork): " + block.getShortDescr());
+        
         State savedState = pushState(block.getParentHash());
         this.fork = true;
 
@@ -386,9 +386,11 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
             this.fork = false;
         }
 
-        if (isMoreThan(this.totalDifficulty, savedState.savedTD)) {
+        if ((isMoreThan(this.totalDifficulty, savedState.savedTD) || this.totalDifficulty.equals(savedState.savedTD)) &&
+                NumberOfDifferentExtradatasInChainProvider.provide(block, this) >
+                NumberOfDifferentExtradatasInChainProvider.provide(currentBestBlock, this)){
 
-            logger.info("Rebranching: {} ~> {}", savedState.savedBest.getShortHash(), block.getShortHash());
+            logger.warn("Rebranching: {} ~> {}", savedState.savedBest.getShortHash(), block.getShortHash());
 
             // main branch become this branch
             // cause we proved that total difficulty
@@ -401,6 +403,8 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
 
             dropState();
         } else {
+            logger.info("Not rebranching, the challener block: " + block.getShortDescr() + 
+                    " did not defeat the current best block: " + currentBestBlock.getShortDescr());
             // Stay on previous branch
             popState();
         }
@@ -686,9 +690,6 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
  
 //      Repository track = repo.startTracking();
         byte[] origRoot = repo.getRoot();
-
-        if (block == null)
-            return null;
 
         // keep chain continuity
 //        if (!Arrays.equals(bestBlock.getHash(),
