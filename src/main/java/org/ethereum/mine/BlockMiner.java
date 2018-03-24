@@ -271,8 +271,6 @@ public class BlockMiner {
         return ret;
     }
 
-    //I will change this, it will wait until the "best block" is more than 10 seconds old
-    //and also the best block should not have been created by this miner
     protected Block getNewBlockForMining() {
         /*
         Block bestPendingState = null;
@@ -296,6 +294,13 @@ public class BlockMiner {
         */
         
         Block bestBlockchain = blockchain.getBestBlock();
+        
+        if (bestBlockchain.isGenesis()){
+            socialLedgerLogger.warn("Genesis block: " + bestBlockchain.getShortDescr() + 
+                    ", difficulty (BigInteger): " + bestBlockchain.getDifficultyBI() + 
+                    ", block number: " + bestBlockchain.getNumber());
+        }
+            
         Block bestPendingState = ((PendingStateImpl) pendingState).getBestBlock();
 
         logger.debug("getNewBlockForMining best blocks: PendingState: " + bestPendingState.getShortDescr() +
