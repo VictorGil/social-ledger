@@ -137,8 +137,7 @@ public class SocialLedgerManager{
         return true;
     }
     
-    ImportResult blockWaitForEndOfTimeSlot(final Block block, long parentTimestamp, boolean isBest){
-        
+    ImportResult blockWaitForEndOfTimeSlot(final Block block, long parentTimestamp, boolean isBest){        
         final List<Byte> parentHashBytesList = new ArrayList<Byte>();
         Block winnerBlock = null;
         Future<Block> future;
@@ -160,8 +159,10 @@ public class SocialLedgerManager{
                         ". New (competing) block: " + block.getShortDescr());               
                  
                 //IMPORTANT: so far we just use the dummy implementation
-                BestBlock bestBlock = DummieBestBlockSelector.select(currentBlock, block);  
-
+                //BestBlock bestBlock = DummieBestBlockSelector.select(currentBlock, block);  
+                
+                BestBlock bestBlock = BestBlockSelectorBasedOnExtraData.select(currentBlock, block, blockchain);
+                
                 if (bestBlock == BLOCK2){            
                     blocksCallableMap.get(parentHashBytesList).setBlock(block);
                 }
