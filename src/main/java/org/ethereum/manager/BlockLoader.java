@@ -21,7 +21,7 @@ package org.ethereum.manager;
 import org.ethereum.config.SystemProperties;
 import org.ethereum.core.*;
 import org.ethereum.db.DbFlushManager;
-import org.ethereum.sync.BlockDownloader;
+import org.ethereum.mine.Ethash;
 import org.ethereum.util.*;
 import org.ethereum.validator.BlockHeaderValidator;
 import org.slf4j.Logger;
@@ -34,14 +34,13 @@ import static org.ethereum.core.ImportResult.BEST_WAITING_IN_TIME_SLOT;
 import static org.ethereum.core.ImportResult.NOT_BEST_WAITING_IN_TIME_SLOT;
 
 import java.io.FileInputStream;
-import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.*;
 
 @Component
 public class BlockLoader {
@@ -65,6 +64,14 @@ public class BlockLoader {
     DateFormat df = new SimpleDateFormat("HH:mm:ss.SSSS");
 
     private void blockWork(Block block) {
+        BigInteger difficulty = block.getDifficultyBI();
+        if (!difficulty.equals(BigInteger.valueOf(Ethash.LOW_DIFFICULTY))){
+            socialLedgerLogger.warn("The difficulty of the received block " + block.getShortDescr() + " (" +  
+                    block.getDifficultyBI() +") " + " is different than " + Ethash.LOW_DIFFICULTY + 
+                    ", block will NOT be processed");
+            return;
+        }
+        
         if (block.getNumber() >= blockchain.getBlockStore().getBestBlock().getNumber() || blockchain.getBlockStore().getBlockByHash(block.getHash()) == null) {
 
             if (block.getNumber() > 0 && !isValid(block.getHeader())) {
