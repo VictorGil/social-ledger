@@ -597,9 +597,9 @@ public class BlockchainImpl implements Blockchain, org.ethereum.facade.Blockchai
         //if the parent was created by this miner, then it should not be created
         final long blockNumber = parent.getNumber() + 1;
 
-        //IMPORTANT, this is where they set the extra data
+        //IMPORTANT for the Social Ledger algorithm, this is where they set the extra data
         final byte[] extraData = config.getBlockchainConfig().getConfigForBlock(blockNumber).getExtraData(minerExtraData, blockNumber);
-
+        
         Block block = new Block(parent.getHash(),
                 EMPTY_LIST_HASH, // uncleHash
                 minerCoinbase,
