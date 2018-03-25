@@ -21,6 +21,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import net.devaction.socialledger.ethereum.core.SocialLedgerManager;
+import net.devaction.socialledger.ethereum.core.extradata.ExtradataComparator;
 
 //import net.devaction.socialledger.ethereum.mine.BlockCompliantChecker;
 
@@ -302,9 +303,16 @@ public class BlockMiner {
         }
             
         Block bestPendingState = ((PendingStateImpl) pendingState).getBestBlock();
-
-        logger.debug("getNewBlockForMining best blocks: PendingState: " + bestPendingState.getShortDescr() +
+        //usually the pending state best block and the best block are actually the same block
+        logger.debug("getNewBlockForMining method, best blocks: PendingState: " + bestPendingState.getShortDescr() +
                 ", Blockchain: " + bestBlockchain.getShortDescr());
+        
+        final byte[] thisMinerExtraData = config.getMineExtraData();
+        if (ExtradataComparator.areEqual(bestPendingState.getExtraData(), thisMinerExtraData)){
+            socialLedgerLogger.debug("We are not allowed to mine two blocks in a row (same extradata). "
+                    + "Current best block to mine on top of it: " + bestPendingState.getShortDescr());
+            return null;
+        }
         
         Block newMiningBlock = blockchain.createNewBlock(bestPendingState, getAllPendingTransactions(),
                 getUncles(bestPendingState));
@@ -315,6 +323,18 @@ public class BlockMiner {
         socialLedgerLogger.debug("restartMining() method started.");
         
         Block newMiningBlock = getNewBlockForMining();
+        while (newMiningBlock == null){
+            if (!isLocalMining){
+                socialLedgerLogger.info("We have been told to stop mining. Stopping.");
+                return;
+            }
+            try{
+                Thread.sleep(30000);
+            } catch(InterruptedException ex){
+                socialLedgerLogger.error("Thread interrupted while sleeping", ex);
+            }
+            newMiningBlock = getNewBlockForMining();
+        }     
 
         //synchronized(this) {
             cancelCurrentBlock();
