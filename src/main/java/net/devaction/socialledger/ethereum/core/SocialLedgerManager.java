@@ -50,6 +50,7 @@ public class SocialLedgerManager{
     private final BlockchainImpl blockchain;
     
     private volatile long firstBlockMinedByUsTimestamp = -1L;
+    private volatile boolean oneOfOurMinedBlocksIsWaitingForCompetitors; 
     
     private final TwitterUserValidator twitterUserValidator;
     private final HashcodeValidator hashcodeValidator; 
@@ -184,10 +185,13 @@ public class SocialLedgerManager{
                 socialLedgerLogger.info("Going to wait in case the first competing block arrives. " + 
                         "Exiting the synchronized block now");
                 
-                if (firstBlockMinedByUsTimestamp == -1L && didWeMineIt(block)) {
-                    socialLedgerLogger.info("This is the first block that we mined: " + block.getShortDescr());
-                    firstBlockMinedByUsTimestamp = block.getTimestamp();
-                }
+                if (didWeMineIt(block)) {
+                    oneOfOurMinedBlocksIsWaitingForCompetitors = true;
+                    if (firstBlockMinedByUsTimestamp == -1L){
+                        socialLedgerLogger.info("This is the first block that we mined: " + block.getShortDescr());
+                        firstBlockMinedByUsTimestamp = block.getTimestamp();    
+                    }
+                } 
             }
         }//end of synchronized block
         
@@ -201,6 +205,8 @@ public class SocialLedgerManager{
         }
         socialLedgerLogger.info("Woke up after waiting. Winner block: " + 
                 winnerBlock == null ? null : winnerBlock.getShortDescr());
+        
+        oneOfOurMinedBlocksIsWaitingForCompetitors = false;
         
         if (Arrays.equals(block.getHash(), winnerBlock.getHash())) {
             if (isBest){
@@ -249,5 +255,9 @@ public class SocialLedgerManager{
         String blockHashString = ByteUtil.toHexString(blockHash);
         socialLedgerLogger.info("Going to tweet: " + blockHashString);
         textTweetter.tweet(blockHashString);
+    }
+    
+    public boolean isOneOfOurMinedBlocksWaitingForCompetitors(){
+        return oneOfOurMinedBlocksIsWaitingForCompetitors;
     }
 }
