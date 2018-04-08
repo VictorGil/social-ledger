@@ -307,15 +307,26 @@ public class BlockMiner {
         logger.debug("getNewBlockForMining method, best blocks: PendingState: " + bestPendingState.getShortDescr() +
                 ", Blockchain: " + bestBlockchain.getShortDescr());
         
+        Block blockToMineOnTopOf = null;
+        if (bestBlockchain.getNumber() > bestPendingState.getNumber()){
+            blockToMineOnTopOf = bestBlockchain;
+        } else
+            blockToMineOnTopOf = bestPendingState;
+        
         final byte[] thisMinerExtraData = config.getMineExtraData();
-        if (ExtradataComparator.areEqual(bestPendingState.getExtraData(), thisMinerExtraData)){
+        if (ExtradataComparator.areEqual(blockToMineOnTopOf.getExtraData(), thisMinerExtraData)){
             socialLedgerLogger.debug("We are not allowed to mine two blocks in a row (same extradata). "
-                    + "Current best block to mine on top of it: " + bestPendingState.getShortDescr());
+                    + "Current best block to mine on top of it: " + blockToMineOnTopOf.getShortDescr());
             return null;
         }
         
-        Block newMiningBlock = blockchain.createNewBlock(bestPendingState, getAllPendingTransactions(),
-                getUncles(bestPendingState));
+        if (SocialLedgerManager.getInstance((BlockchainImpl) blockchain).isOneOfOurMinedBlocksWaitingForCompetitors()){
+            socialLedgerLogger.info("Our previous mined block is waiting for competitors, so we cannot start mining yet.");
+            return null;
+        }
+        
+        Block newMiningBlock = blockchain.createNewBlock(blockToMineOnTopOf, getAllPendingTransactions(),
+                getUncles(blockToMineOnTopOf));
         return newMiningBlock;
     }
 
