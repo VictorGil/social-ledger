@@ -30,13 +30,13 @@ public class ProofOfWorkRule extends BlockHeaderRule {
 
     @Override
     public ValidationResult validate(BlockHeader header) {
-        byte[] proof = header.calcPowValue();
-        byte[] boundary = header.getPowBoundary();
-        
         //So far we disable this check in the Social Ledger algorithm
         //since we do not care about the difficulty, it only makes sense
         //when using Proof of Work
         /*
+        byte[] proof = header.calcPowValue();
+        byte[] boundary = header.getPowBoundary();
+        
         if (!header.isGenesis() && FastByteComparisons.compareTo(proof, 0, 32, boundary, 0, 32) > 0) {
             return fault(String.format("#%d: proofValue > header.getPowBoundary()", header.getNumber()));
         }

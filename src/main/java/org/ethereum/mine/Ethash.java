@@ -273,10 +273,20 @@ public class Ethash {
      *  Validates the BlockHeader against its getDifficulty() and getNonce()
      */
     public boolean validate(BlockHeader header) {
+        //We comment this out because for the Social Ledger algorithm we do not really 
+        //need to check the difficulty
+        /*
         byte[] boundary = header.getPowBoundary();
         byte[] hash = hashimotoLight(header, header.getNonce()).getRight();
-
+        
+        //BTW, why the hash needs to be less than the boundary?
+        //should not it be the other way around?
+        //I would expect the PoW boundary to be a lower threshold...       
         return FastByteComparisons.compareTo(hash, 0, 32, boundary, 0, 32) < 0;
+        */
+        
+        //TO DO: we should check that the difficulty of the block is one
+        return true;
     }
 
     class MineTask extends AnyFuture<MiningResult> {
