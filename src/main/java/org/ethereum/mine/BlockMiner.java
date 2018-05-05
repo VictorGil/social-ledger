@@ -316,7 +316,8 @@ public class BlockMiner {
         final byte[] thisMinerExtraData = config.getMineExtraData();
         if (ExtradataComparator.areEqual(blockToMineOnTopOf.getExtraData(), thisMinerExtraData)){
             socialLedgerLogger.debug("We are not allowed to mine two blocks in a row (same extradata). "
-                    + "Current best block to mine on top of it: " + blockToMineOnTopOf.getShortDescr());
+                    + "Current best block to mine on top of it: " + blockToMineOnTopOf.getShortDescr() + 
+                    ". This miner extradata: " +  new String(thisMinerExtraData, ExtradataComparator.EXTRA_DATA_CHARSET).trim());
             return null;
         }
         
