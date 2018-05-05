@@ -196,7 +196,7 @@ dependencies {
         exclude group: 'junit', module: 'junit'
     }
     
-    compile("net.devaction.socialledger:validator-using-twitter:1.0.0.0-SNAPSHOT") {
+    compile("net.devaction.socialledger:validator-using-twitter:1.0.0.0") {
         exclude group: 'commons-logging', module: 'commons-logging'
         exclude group: 'log4j', module: 'log4j'
     }
