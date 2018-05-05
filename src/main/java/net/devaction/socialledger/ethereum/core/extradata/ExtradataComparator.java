@@ -19,6 +19,10 @@ public class ExtradataComparator{
         String extradataStr1 = new String(extradata1, EXTRA_DATA_CHARSET).trim();
         String extradataStr2 = new String(extradata2, EXTRA_DATA_CHARSET).trim();
         
-        return extradataStr1.toLowerCase().equals(extradataStr2.toLowerCase());
+        boolean result = extradataStr1.toLowerCase().equals(extradataStr2.toLowerCase());
+        
+        if (result == true)
+            log.info("Extradata is the same: " +  extradataStr1 + " vs " + extradataStr2);
+        return result;
     }   
 }
