@@ -330,11 +330,16 @@ public class ChannelManager {
     private void sendNewBlock(Block block, Channel receivedFrom) {
         for (Channel channel : activePeers.values()) {
             if (channel == receivedFrom) continue;
-            if (rnd.nextInt(10) < 3) {  // 30%
+            
+            //SocialLedger change: we broadcast the full block to everyone 
+            //if (rnd.nextInt(10) < 3) {  // 30%            
                 channel.sendNewBlock(block);
+            
+            /*
             } else {                    // 70%
                 channel.sendNewBlockHashes(block);
             }
+            */
         }
     }
 
